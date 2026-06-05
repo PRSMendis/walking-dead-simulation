@@ -1,0 +1,109 @@
+Ailo Walking Dead Simulation - Assumptions
+
+The exercise brief intentionally leaves several behaviours open. These are the assumptions made by this implementation.
+
+1. Coordinates and grid
+
+- The warehouse is a square N x N grid.
+- Coordinates are zero-indexed.
+- (0, 0) is the top-left cell.
+- x increases from left to right.
+- y increases from top to bottom.
+- Entities cannot move outside the grid.
+- All starting positions must be inside the grid.
+- Multiple entities may start on the same cell.
+- Multiple entities may occupy the same cell during the simulation.
+- Resources are static and never block movement.
+
+2. Input
+
+- Input is JSON because it is easy to read, validate, test, and extend.
+- gridSize is required and must be a positive integer.
+- walkers, labSurvivors, precinctSurvivors, and resources are required arrays.
+- Every walker, survivor, and resource must have a unique non-empty string id.
+- Every position must use integer x and y values.
+- maxTurns is optional.
+- If maxTurns is not provided, the simulation uses a default of 100 turns.
+- maxTurns exists as a guard against accidental infinite simulations.
+
+3. Turns and activation
+
+- The simulation runs in discrete turns.
+- Every living entity gets at most one activation per turn.
+- Survivors activate before walkers.
+- Lab survivors activate before Precinct survivors.
+- Entities within the same type and group activate by id.
+- Activation order is recalculated at the start of each turn.
+- If an entity dies before its activation in the current turn, it does not act.
+- Interactions are resolved after each entity moves.
+- If the end condition is reached partway through a turn, the turn stops immediately.
+
+4. Movement
+
+- Entities move one cell per activation.
+- Movement is orthogonal only: up, right, down, or left.
+- Diagonal movement is not allowed.
+- Entities choose the move that most reduces Manhattan distance to their target.
+- If more than one move is equally good, ties are resolved by reading order: top to bottom, then left to right.
+- If no move would reduce distance to the target, the entity stays in place.
+- Entities can move through cells containing other entities or resources.
+
+5. Survivor behaviour
+
+- Lab and Precinct survivors are both human survivor entities.
+- Survivors attempt to claim resources for their own group.
+- A survivor targets the nearest unclaimed resource.
+- If multiple resources are equally near, the survivor chooses by reading order, then resource id.
+- A survivor claims an unclaimed resource by occupying its cell while alive.
+- If a survivor starts on an unclaimed resource, it can claim that resource before the first normal turn.
+- If there are no unclaimed resources, a survivor stays in place.
+- Lab and Precinct survivors do not fight, block, damage, or kill each other.
+- Lab and Precinct survivors can occupy the same cell.
+
+6. Walker behaviour
+
+- Walkers are living entities for activation purposes, but they cannot be killed in this implementation.
+- Walkers target the nearest living human survivor.
+- If multiple survivors are equally near, the walker chooses by reading order, then survivor id.
+- If there are no living humans, a walker stays in place.
+- Walkers do not interact with or block other walkers.
+
+7. Interactions
+
+- A walker kills any living survivor sharing its cell.
+- Walker attacks are immediate once interactions are resolved.
+- If multiple walkers share a cell with a survivor, the survivor still dies once.
+- A dead survivor cannot claim resources.
+- If a walker and survivor start on the same cell, the survivor dies before the first normal turn.
+- If more than one living survivor is on an unclaimed resource at the same interaction point, the active survivor claims it when applicable; otherwise the deterministic entity order decides.
+- Claimed resources remain claimed forever.
+
+8. Ending conditions
+
+- The simulation ends when all resources have been claimed.
+- The simulation ends when no humans remain alive.
+- The simulation also stops at maxTurns, even if neither primary ending condition has been reached.
+- maxTurns is reported separately so it is clear that the simulation stopped because of the guard.
+
+9. Winner
+
+- The primary score is the number of resources claimed by each group.
+- The group with more claimed resources wins.
+- If claimed resources are tied, the group with more living survivors wins.
+- If both resource count and living survivor count are tied, the result is a draw.
+- Walkers cannot win; they can only cause a no-humans ending.
+
+10. Output
+
+- Output should be understandable by a human reading the result.
+- The CLI prints the winner, reason, number of turns, scores, survivor counts, and turn-by-turn events.
+- Each turn includes a short summary of claimed resources and score.
+- The simulation engine returns structured data so other output formats could be added later.
+
+11. Implementation scope
+
+- The implementation prioritises deterministic, testable rules over randomness.
+- No pathfinding around obstacles is needed because the brief does not define obstacles.
+- No combat system is implemented between survivor groups because the brief only says they are competing for resources.
+- No walker health, survivor health, inventory, stamina, or resource types are modelled.
+- The project uses JavaScript and Node's built-in test runner to avoid external dependencies.
