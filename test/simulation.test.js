@@ -52,6 +52,47 @@ test("survivors claim resources for their group", () => {
   assert.equal(result.resources[0].claimedBy, GROUPS.LAB);
 });
 
+test("multiple survivors across groups can claim resources in the same turn", () => {
+  const result = runSimulation({
+    gridSize: 5,
+    maxTurns: 1,
+    walkers: [],
+    labSurvivors: [
+      { id: "L1", x: 0, y: 0 },
+      { id: "L2", x: 0, y: 4 },
+    ],
+    precinctSurvivors: [
+      { id: "P1", x: 4, y: 0 },
+      { id: "P2", x: 4, y: 4 },
+    ],
+    resources: [
+      { id: "R1", x: 1, y: 0 },
+      { id: "R2", x: 1, y: 4 },
+      { id: "R3", x: 3, y: 0 },
+      { id: "R4", x: 3, y: 4 },
+    ],
+  });
+
+  assert.equal(result.reason, "All resources have been claimed.");
+  assert.deepEqual(result.scores, {
+    [GROUPS.LAB]: 2,
+    [GROUPS.PRECINCT]: 2,
+  });
+  assert.deepEqual(
+    result.resources.map((resource) => [resource.id, resource.claimedBy]),
+    [
+      ["R1", GROUPS.LAB],
+      ["R2", GROUPS.LAB],
+      ["R3", GROUPS.PRECINCT],
+      ["R4", GROUPS.PRECINCT],
+    ],
+  );
+  assert.match(
+    result.log[0].events.join("\n"),
+    /L1 claimed R1.*L2 claimed R2.*P1 claimed R3.*P2 claimed R4/s,
+  );
+});
+
 test("activation order can allow walkers to move before survivors", () => {
   const result = runSimulation({
     gridSize: 3,
@@ -209,6 +250,34 @@ test("survivors can kill walkers when combat chance succeeds", () => {
   );
 });
 
+test("multiple survivors can each kill one walker in the same occupied cell", () => {
+  const result = runSimulation({
+    gridSize: 3,
+    maxTurns: 1,
+    rules: {
+      combat: {
+        survivorKillWalkerChance: 1,
+      },
+    },
+    walkers: [
+      { id: "W1", x: 0, y: 0 },
+      { id: "W2", x: 0, y: 0 },
+    ],
+    labSurvivors: [
+      { id: "L1", x: 0, y: 0 },
+      { id: "L2", x: 0, y: 0 },
+    ],
+    precinctSurvivors: [],
+    resources: [{ id: "R1", x: 2, y: 2 }],
+  });
+
+  assert.equal(result.survivorsRemaining[GROUPS.LAB], 2);
+  assert.match(
+    result.log.flatMap((turn) => turn.events).join("\n"),
+    /L1 \(Lab\) killed W1.*L2 \(Lab\) killed W2/s,
+  );
+});
+
 test("Lab and Precinct survivors do not kill each other by default", () => {
   const result = runSimulation({
     gridSize: 3,
@@ -317,6 +386,199 @@ test("winner falls back to living survivors when resource score is tied", () => 
   });
 
   assert.equal(determineWinner(state), GROUPS.PRECINCT);
+});
+
+test("winner is decided by resource score before survivor count", () => {
+  const result = runSimulation({
+    gridSize: 5,
+    maxTurns: 10,
+    walkers: [],
+    labSurvivors: [{ id: "L1", x: 0, y: 0 }],
+    precinctSurvivors: [
+      { id: "P1", x: 4, y: 4 },
+      { id: "P2", x: 4, y: 3 },
+    ],
+    resources: [
+      { id: "R1", x: 1, y: 0 },
+      { id: "R2", x: 2, y: 0 },
+      { id: "R3", x: 3, y: 0 },
+    ],
+  });
+
+  assert.equal(result.reason, "All resources have been claimed.");
+  assert.equal(result.winner, GROUPS.LAB);
+  assert.equal(result.scores[GROUPS.LAB], 3);
+  assert.equal(result.survivorsRemaining[GROUPS.PRECINCT], 2);
+});
+
+test("larger mixed scenario handles multiple survivors, walkers, and resources", () => {
+  const result = runSimulation({
+    gridSize: 6,
+    maxTurns: 4,
+    rules: {
+      combat: {
+        survivorKillWalkerChance: 1,
+        interGroupSurvivorKillChance: 0,
+        randomSeed: 1,
+      },
+    },
+    walkers: [
+      { id: "W1", x: 2, y: 0 },
+      { id: "W2", x: 3, y: 5 },
+    ],
+    labSurvivors: [
+      { id: "L1", x: 0, y: 0 },
+      { id: "L2", x: 0, y: 5 },
+    ],
+    precinctSurvivors: [
+      { id: "P1", x: 5, y: 0 },
+      { id: "P2", x: 5, y: 5 },
+    ],
+    resources: [
+      { id: "R1", x: 1, y: 0 },
+      { id: "R2", x: 1, y: 5 },
+      { id: "R3", x: 4, y: 0 },
+      { id: "R4", x: 4, y: 5 },
+      { id: "R5", x: 3, y: 3 },
+    ],
+  });
+
+  assert.equal(result.reason, "All resources have been claimed.");
+  assert.equal(result.winner, GROUPS.PRECINCT);
+  assert.equal(result.turns, 4);
+  assert.deepEqual(result.scores, {
+    [GROUPS.LAB]: 2,
+    [GROUPS.PRECINCT]: 3,
+  });
+  assert.deepEqual(result.survivorsRemaining, {
+    [GROUPS.LAB]: 2,
+    [GROUPS.PRECINCT]: 2,
+  });
+  assert.equal(
+    result.resources.find((resource) => resource.id === "R5").claimedByEntityId,
+    "P2",
+  );
+  assert.match(
+    result.log.flatMap((turn) => turn.events).join("\n"),
+    /L1 \(Lab\) killed W1.*P2 \(Precinct\) killed W2.*P2 claimed R5/s,
+  );
+});
+
+test("simulation reports maxTurns when the turn guard stops the run", () => {
+  const result = runSimulation({
+    gridSize: 6,
+    maxTurns: 1,
+    walkers: [],
+    labSurvivors: [{ id: "L1", x: 0, y: 0 }],
+    precinctSurvivors: [],
+    resources: [{ id: "R1", x: 5, y: 5 }],
+  });
+
+  assert.equal(result.reason, "Reached maxTurns (1).");
+  assert.equal(result.winner, GROUPS.LAB);
+  assert.equal(result.scores[GROUPS.LAB], 0);
+});
+
+test("resources dropped in inter-group combat can be claimed by the survivor on that cell", () => {
+  const result = runSimulation({
+    gridSize: 3,
+    maxTurns: 1,
+    rules: {
+      combat: {
+        interGroupSurvivorKillChance: 1,
+      },
+    },
+    walkers: [],
+    labSurvivors: [{ id: "L1", x: 0, y: 1 }],
+    precinctSurvivors: [{ id: "P1", x: 1, y: 1 }],
+    resources: [
+      { id: "R1", x: 1, y: 1 },
+      { id: "R2", x: 2, y: 1 },
+    ],
+  });
+
+  const resource = result.resources.find((candidate) => candidate.id === "R1");
+  assert.equal(resource.claimedBy, GROUPS.LAB);
+  assert.deepEqual(resource.position, { x: 1, y: 1 });
+  assert.match(
+    result.log.flatMap((turn) => turn.events).join("\n"),
+    /P1 dropped R1.*L1 claimed R1/s,
+  );
+});
+
+test("seeded combat makes repeated simulations reproducible", () => {
+  const scenario = {
+    gridSize: 4,
+    maxTurns: 4,
+    rules: {
+      combat: {
+        survivorKillWalkerChance: 0.5,
+        interGroupSurvivorKillChance: 0.5,
+        randomSeed: 42,
+      },
+    },
+    walkers: [{ id: "W1", x: 1, y: 0 }],
+    labSurvivors: [{ id: "L1", x: 0, y: 0 }],
+    precinctSurvivors: [{ id: "P1", x: 0, y: 1 }],
+    resources: [{ id: "R1", x: 3, y: 3 }],
+  };
+
+  assert.deepEqual(runSimulation(scenario), runSimulation(scenario));
+});
+
+test("different random seeds can produce different combat outcomes", () => {
+  const buildScenario = (randomSeed) => ({
+    gridSize: 2,
+    maxTurns: 1,
+    rules: {
+      combat: {
+        survivorKillWalkerChance: 0.5,
+        randomSeed,
+      },
+    },
+    walkers: [{ id: "W1", x: 0, y: 0 }],
+    labSurvivors: [{ id: "L1", x: 0, y: 0 }],
+    precinctSurvivors: [],
+    resources: [],
+  });
+
+  const survivorWins = runSimulation(buildScenario(1));
+  const walkerWins = runSimulation(buildScenario(100000));
+
+  assert.equal(survivorWins.survivorsRemaining[GROUPS.LAB], 1);
+  assert.equal(walkerWins.survivorsRemaining[GROUPS.LAB], 0);
+  assert.match(
+    survivorWins.log.flatMap((turn) => turn.events).join("\n"),
+    /L1 \(Lab\) killed W1/,
+  );
+  assert.match(
+    walkerWins.log.flatMap((turn) => turn.events).join("\n"),
+    /L1 \(Lab\) was killed by W1/,
+  );
+});
+
+test("omitting randomSeed uses the documented default seed", () => {
+  const buildScenario = (combat) => ({
+    gridSize: 2,
+    maxTurns: 1,
+    rules: {
+      combat,
+    },
+    walkers: [{ id: "W1", x: 0, y: 0 }],
+    labSurvivors: [{ id: "L1", x: 0, y: 0 }],
+    precinctSurvivors: [],
+    resources: [],
+  });
+
+  assert.deepEqual(
+    runSimulation(buildScenario({ survivorKillWalkerChance: 0.5 })),
+    runSimulation(
+      buildScenario({
+        survivorKillWalkerChance: 0.5,
+        randomSeed: 1,
+      }),
+    ),
+  );
 });
 
 test("scenario validation rejects out-of-bounds positions", () => {
@@ -445,19 +707,54 @@ test("all sample scenarios run successfully", async () => {
   assert.deepEqual(sampleFiles, [
     "diagonal-movement.json",
     "fast-walkers.json",
+    "lab-advantage.json",
+    "precinct-advantage.json",
     "scenario.json",
     "walker-first.json",
   ]);
+
+  const expectedOutcomes = {
+    "diagonal-movement.json": {
+      winner: "Draw",
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 1, [GROUPS.PRECINCT]: 1 },
+    },
+    "fast-walkers.json": {
+      winner: "Draw",
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 1, [GROUPS.PRECINCT]: 1 },
+    },
+    "lab-advantage.json": {
+      winner: GROUPS.LAB,
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 3, [GROUPS.PRECINCT]: 0 },
+    },
+    "precinct-advantage.json": {
+      winner: GROUPS.PRECINCT,
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 0, [GROUPS.PRECINCT]: 3 },
+    },
+    "scenario.json": {
+      winner: "Draw",
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 2, [GROUPS.PRECINCT]: 2 },
+    },
+    "walker-first.json": {
+      winner: "Draw",
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 1, [GROUPS.PRECINCT]: 1 },
+    },
+  };
 
   for (const sampleFile of sampleFiles) {
     const samplePath = join(sampleDir.pathname, sampleFile);
     const scenario = JSON.parse(await readFile(samplePath, "utf8"));
     const result = runSimulation(scenario);
+    const expected = expectedOutcomes[sampleFile];
 
-    assert.ok(
-      ["Lab", "Precinct", "Draw"].includes(result.winner),
-      `${sampleFile} should produce a valid winner`,
-    );
+    assert.equal(result.winner, expected.winner, `${sampleFile} winner`);
+    assert.equal(result.reason, expected.reason, `${sampleFile} reason`);
+    assert.deepEqual(result.scores, expected.scores, `${sampleFile} scores`);
     assert.ok(result.log.length > 0, `${sampleFile} should produce a turn log`);
   }
 });

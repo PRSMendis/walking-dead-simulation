@@ -20,6 +20,8 @@ Run one of the alternate sample scenarios:
 ```sh
 npm run run -- sample/diagonal-movement.json
 npm run run -- sample/fast-walkers.json
+npm run run -- sample/lab-advantage.json
+npm run run -- sample/precinct-advantage.json
 npm run run -- sample/walker-first.json
 ```
 
@@ -153,11 +155,18 @@ The winner is the group with the most claimed resources. If resource counts are 
 
 ## Project Structure
 
-- `src/simulation.js` - core simulation engine
+- `src/simulation.js` - public simulation facade used by the CLI and tests
+- `src/engine.js` - turn loop and activation orchestration
+- `src/interactions.js` - resource claims, combat, survivor death, and dropped resources
+- `src/movement.js` - movement, targeting, and position helpers
+- `src/state.js` - scenario validation, initial state, scores, summaries, and winner calculation
+- `src/rules.js`, `src/random.js`, `src/constants.js` - rule normalization, seeded randomness, and shared constants
 - `src/cli.js` - command-line entry point
 - `sample/scenario.json` - runnable sample input
 - `sample/diagonal-movement.json` - sample showing diagonal movement
 - `sample/fast-walkers.json` - sample showing different Lab, Precinct, and walker activation speeds
+- `sample/lab-advantage.json` - sample tuned to produce a Lab win
+- `sample/precinct-advantage.json` - sample tuned to produce a Precinct win
 - `sample/walker-first.json` - sample showing walkers activating before survivors
 - `test/simulation.test.js` - focused behaviour tests
 - `assumptions` - explicit assumptions made by the implementation

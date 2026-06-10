@@ -8,6 +8,8 @@ The simulation is reproducible by default. Given the same input and random seed,
 
 This makes the result easier to test, debug, discuss in an interview, and evolve safely. Random combat makes the simulation feel less mechanical, but it uses a seeded pseudo-random number generator so failures and walkthroughs can be reproduced.
 
+The seeded generator uses the Park-Miller "minimal standard" algorithm. Its multiplier and modulus are named in code rather than left as raw numbers, because values like 16807 and 2147483647 are meaningful algorithm constants rather than domain rules. Naming them keeps the implementation readable and makes it clear that 2147483647 is the generator modulus, not an arbitrary simulation limit.
+
 2. Configurable rules object
 
 The brief leaves movement, activation order, and interaction outcomes open. Instead of burying those choices as permanent constants, the simulation now accepts an optional rules object.
@@ -118,7 +120,15 @@ If resources are tied, remaining living survivors are used as a tie-breaker. If 
 
 This keeps the winner calculation aligned with the core objective while still producing useful outcomes for tied resource scenarios.
 
-11. AI usage
+11. Module boundaries
+
+The implementation keeps src/simulation.js as the public facade, while splitting the simulation internals into focused modules for constants, rules, random number generation, movement, state, interactions, and the engine loop.
+
+This makes the code easier to read without changing the public API used by the CLI and tests. The split follows the simulation's natural responsibilities: low-level constants and rules sit at the bottom, interactions and state helpers build on them, and the engine orchestrates the turn flow.
+
+Keeping src/simulation.js as a facade is intentional. This is a common JavaScript pattern, sometimes called a barrel file or public entrypoint. Callers can import the simulation API from one obvious place, while the implementation remains free to move between internal modules. In this project, that trade-off is worthwhile because there is a single domain boundary and a small public API; adding barrel files throughout every folder would be unnecessary.
+
+12. AI usage
 
 AI was useful for identifying ambiguities in the brief and exploring possible rule sets. The final choices prioritise determinism, configurability, and testability.
 

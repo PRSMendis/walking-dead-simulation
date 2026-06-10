@@ -1,0 +1,32 @@
+{
+  "gridSize": 5,
+  "maxTurns": 10,
+  "rules": {
+    "movement": "orthogonal",
+    "activation": {
+      "labMoveSteps": 1,
+      "precinctMoveSteps": 2,
+      "walkerMoveSteps": 1,
+      "interactionTiming": "after-each-step"
+    },
+    "combat": {
+      "survivorKillWalkerChance": 0.5,
+      "interGroupSurvivorKillChance": 0,
+      "randomSeed": 1
+    },
+    "activationOrder": ["Lab", "Precinct", "Walker"],
+    "resourceOwnership": "dropped-on-death"
+  },
+  "walkers": [],
+  "labSurvivors": [
+    { "id": "L1", "x": 0, "y": 0 }
+  ],
+  "precinctSurvivors": [
+    { "id": "P1", "x": 4, "y": 4 }
+  ],
+  "resources": [
+    { "id": "R1", "x": 3, "y": 4 },
+    { "id": "R2", "x": 2, "y": 4 },
+    { "id": "R3", "x": 1, "y": 4 }
+  ]
+}
