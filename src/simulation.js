@@ -24,16 +24,31 @@ export const ACTIVATION_PARTICIPANTS = Object.freeze({
   WALKER: "Walker",
 });
 
+export const INTERACTION_TIMING = Object.freeze({
+  AFTER_EACH_STEP: "after-each-step",
+  AFTER_ACTIVATION: "after-activation",
+});
+
 const DEFAULT_MAX_TURNS = 100;
 
 const DEFAULT_RULES = Object.freeze({
   movement: MOVEMENT_MODES.ORTHOGONAL,
+  activation: Object.freeze({
+    labMoveSteps: 1,
+    precinctMoveSteps: 1,
+    walkerMoveSteps: 1,
+    interactionTiming: INTERACTION_TIMING.AFTER_EACH_STEP,
+  }),
+  combat: Object.freeze({
+    survivorKillWalkerChance: 0.5,
+    randomSeed: 1,
+  }),
   activationOrder: Object.freeze([
     ACTIVATION_PARTICIPANTS.LAB,
     ACTIVATION_PARTICIPANTS.PRECINCT,
     ACTIVATION_PARTICIPANTS.WALKER,
   ]),
-  resourceOwnership: RESOURCE_OWNERSHIP.CLAIMED_ON_TOUCH,
+  resourceOwnership: RESOURCE_OWNERSHIP.DROPPED_ON_DEATH,
 });
 
 const ORTHOGONAL_DIRECTIONS = Object.freeze([
@@ -81,7 +96,6 @@ export function runSimulation(scenario) {
       }
 
       activateEntity(state, entity, events);
-      resolveInteractions(state, events, entity.id);
 
       if (isComplete(state)) {
         break;
@@ -107,7 +121,7 @@ export function runSimulation(scenario) {
       claimedBy: resource.claimedBy,
       claimedByEntityId: resource.claimedByEntityId,
     })),
-    rules: { ...state.rules, activationOrder: [...state.rules.activationOrder] },
+    rules: cloneRules(state.rules),
     log,
   };
 }
@@ -165,9 +179,11 @@ export function validateScenario(scenario) {
 }
 
 export function createInitialState(scenario) {
+  const rules = normalizeRules(scenario.rules);
   return {
     gridSize: scenario.gridSize,
-    rules: normalizeRules(scenario.rules),
+    rules,
+    random: createSeededRandom(rules.combat.randomSeed),
     entities: [
       ...scenario.labSurvivors.map((survivor) =>
         createSurvivor(survivor, GROUPS.LAB),
@@ -256,44 +272,43 @@ function createSurvivor(survivor, group) {
 }
 
 function activateEntity(state, entity, events) {
-  if (entity.type === ENTITY_TYPES.SURVIVOR) {
-    activateSurvivor(state, entity, events);
-    return;
+  const moveSteps = getMoveStepsForEntity(state, entity);
+
+  for (let step = 0; step < moveSteps; step += 1) {
+    const target = findActivationTarget(state, entity);
+
+    if (!target) {
+      events.push(getNoTargetEvent(entity));
+      break;
+    }
+
+    const moved = moveEntityToward(
+      state,
+      entity,
+      target.position,
+      events,
+      target.id,
+    );
+
+    if (
+      state.rules.activation.interactionTiming ===
+      INTERACTION_TIMING.AFTER_EACH_STEP
+    ) {
+      resolveInteractions(state, events, entity.id);
+    }
+
+    if (!entity.alive || isComplete(state) || !moved) {
+      break;
+    }
   }
 
-  activateWalker(state, entity, events);
-}
-
-function activateSurvivor(state, survivor, events) {
-  const target = findNearestTarget(
-    survivor.position,
-    state.resources.filter((resource) => resource.claimedBy === null),
-    state.rules.movement,
-  );
-
-  if (!target) {
-    events.push(`${survivor.id} had no unclaimed resources to pursue.`);
-    return;
+  if (
+    entity.alive &&
+    state.rules.activation.interactionTiming ===
+      INTERACTION_TIMING.AFTER_ACTIVATION
+  ) {
+    resolveInteractions(state, events, entity.id);
   }
-
-  moveEntityToward(state, survivor, target.position, events, target.id);
-}
-
-function activateWalker(state, walker, events) {
-  const target = findNearestTarget(
-    walker.position,
-    state.entities.filter(
-      (entity) => entity.type === ENTITY_TYPES.SURVIVOR && entity.alive,
-    ),
-    state.rules.movement,
-  );
-
-  if (!target) {
-    events.push(`${walker.id} had no living humans to pursue.`);
-    return;
-  }
-
-  moveEntityToward(state, walker, target.position, events, target.id);
 }
 
 function moveEntityToward(state, entity, targetPosition, events, targetId) {
@@ -308,12 +323,13 @@ function moveEntityToward(state, entity, targetPosition, events, targetId) {
 
   if (positionsEqual(from, to)) {
     events.push(`${entity.id} stayed at ${formatPosition(to)} near ${targetId}.`);
-    return;
+    return false;
   }
 
   events.push(
     `${entity.id} moved from ${formatPosition(from)} to ${formatPosition(to)} toward ${targetId}.`,
   );
+  return true;
 }
 
 function resolveInteractions(state, events, actorId = null) {
@@ -326,9 +342,7 @@ function resolveInteractions(state, events, actorId = null) {
     );
 
     if (walkers.length > 0 && survivors.length > 0) {
-      for (const survivor of survivors) {
-        killSurvivor(state, survivor, walkers, events);
-      }
+      resolveSurvivorWalkerCombat(state, survivors, walkers, events);
     }
   }
 
@@ -360,6 +374,36 @@ function resolveInteractions(state, events, actorId = null) {
   }
 }
 
+function resolveSurvivorWalkerCombat(state, survivors, walkers, events) {
+  const orderedSurvivors = [...survivors].sort((a, b) =>
+    compareEntities(a, b, state.rules.activationOrder),
+  );
+
+  for (const survivor of orderedSurvivors) {
+    if (!survivor.alive) {
+      continue;
+    }
+
+    const livingWalkers = walkers
+      .filter((walker) => walker.alive)
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    if (livingWalkers.length === 0) {
+      return;
+    }
+
+    if (state.random() < state.rules.combat.survivorKillWalkerChance) {
+      const walker = livingWalkers[0];
+      walker.alive = false;
+      events.push(
+        `${survivor.id} (${survivor.group}) killed ${walker.id} at ${formatPosition(survivor.position)}.`,
+      );
+    } else {
+      killSurvivor(state, survivor, livingWalkers, events);
+    }
+  }
+}
+
 function getActivationOrder(state) {
   return state.entities
     .filter((entity) => entity.alive)
@@ -388,6 +432,44 @@ function findNearestTarget(from, targets, movement) {
       a.id.localeCompare(b.id)
     );
   })[0];
+}
+
+function findActivationTarget(state, entity) {
+  if (entity.type === ENTITY_TYPES.SURVIVOR) {
+    return findNearestTarget(
+      entity.position,
+      state.resources.filter((resource) => resource.claimedBy === null),
+      state.rules.movement,
+    );
+  }
+
+  return findNearestTarget(
+    entity.position,
+    state.entities.filter(
+      (candidate) => candidate.type === ENTITY_TYPES.SURVIVOR && candidate.alive,
+    ),
+    state.rules.movement,
+  );
+}
+
+function getMoveStepsForEntity(state, entity) {
+  if (entity.type === ENTITY_TYPES.WALKER) {
+    return state.rules.activation.walkerMoveSteps;
+  }
+
+  if (entity.group === GROUPS.LAB) {
+    return state.rules.activation.labMoveSteps;
+  }
+
+  return state.rules.activation.precinctMoveSteps;
+}
+
+function getNoTargetEvent(entity) {
+  if (entity.type === ENTITY_TYPES.WALKER) {
+    return `${entity.id} had no living humans to pursue.`;
+  }
+
+  return `${entity.id} had no unclaimed resources to pursue.`;
 }
 
 function killSurvivor(state, survivor, walkers, events) {
@@ -504,17 +586,70 @@ function normalizeRules(rules = {}) {
 
   const normalized = {
     movement: rules.movement ?? DEFAULT_RULES.movement,
+    activation: normalizeActivationRule(rules.activation),
+    combat: normalizeCombatRule(rules.combat),
     activationOrder: rules.activationOrder ?? [...DEFAULT_RULES.activationOrder],
     resourceOwnership: rules.resourceOwnership ?? DEFAULT_RULES.resourceOwnership,
   };
 
   validateMovementRule(normalized.movement);
+  validateActivationRule(normalized.activation);
+  validateCombatRule(normalized.combat);
   validateActivationOrder(normalized.activationOrder);
   validateResourceOwnership(normalized.resourceOwnership);
 
+  return cloneRules(normalized);
+}
+
+function normalizeActivationRule(activation = {}) {
+  if (activation === undefined) {
+    return { ...DEFAULT_RULES.activation };
+  }
+
+  if (!activation || typeof activation !== "object" || Array.isArray(activation)) {
+    throw new Error("rules.activation must be an object when provided.");
+  }
+
   return {
-    ...normalized,
-    activationOrder: [...normalized.activationOrder],
+    labMoveSteps:
+      activation.labMoveSteps ??
+      activation.survivorMoveSteps ??
+      DEFAULT_RULES.activation.labMoveSteps,
+    precinctMoveSteps:
+      activation.precinctMoveSteps ??
+      activation.survivorMoveSteps ??
+      DEFAULT_RULES.activation.precinctMoveSteps,
+    walkerMoveSteps:
+      activation.walkerMoveSteps ?? DEFAULT_RULES.activation.walkerMoveSteps,
+    interactionTiming:
+      activation.interactionTiming ?? DEFAULT_RULES.activation.interactionTiming,
+  };
+}
+
+function normalizeCombatRule(combat = {}) {
+  if (combat === undefined) {
+    return { ...DEFAULT_RULES.combat };
+  }
+
+  if (!combat || typeof combat !== "object" || Array.isArray(combat)) {
+    throw new Error("rules.combat must be an object when provided.");
+  }
+
+  return {
+    survivorKillWalkerChance:
+      combat.survivorKillWalkerChance ??
+      DEFAULT_RULES.combat.survivorKillWalkerChance,
+    randomSeed: combat.randomSeed ?? DEFAULT_RULES.combat.randomSeed,
+  };
+}
+
+function cloneRules(rules) {
+  return {
+    movement: rules.movement,
+    activation: { ...rules.activation },
+    combat: { ...rules.combat },
+    activationOrder: [...rules.activationOrder],
+    resourceOwnership: rules.resourceOwnership,
   };
 }
 
@@ -523,6 +658,47 @@ function validateMovementRule(movement) {
     throw new Error(
       `rules.movement must be one of: ${Object.values(MOVEMENT_MODES).join(", ")}.`,
     );
+  }
+}
+
+function validateActivationRule(activation) {
+  validatePositiveIntegerRule(
+    activation.labMoveSteps,
+    "rules.activation.labMoveSteps",
+  );
+  validatePositiveIntegerRule(
+    activation.precinctMoveSteps,
+    "rules.activation.precinctMoveSteps",
+  );
+  validatePositiveIntegerRule(
+    activation.walkerMoveSteps,
+    "rules.activation.walkerMoveSteps",
+  );
+
+  if (!Object.values(INTERACTION_TIMING).includes(activation.interactionTiming)) {
+    throw new Error(
+      `rules.activation.interactionTiming must be one of: ${Object.values(INTERACTION_TIMING).join(", ")}.`,
+    );
+  }
+}
+
+function validateCombatRule(combat) {
+  if (
+    typeof combat.survivorKillWalkerChance !== "number" ||
+    combat.survivorKillWalkerChance < 0 ||
+    combat.survivorKillWalkerChance > 1
+  ) {
+    throw new Error("rules.combat.survivorKillWalkerChance must be between 0 and 1.");
+  }
+
+  if (!Number.isInteger(combat.randomSeed)) {
+    throw new Error("rules.combat.randomSeed must be an integer.");
+  }
+}
+
+function validatePositiveIntegerRule(value, name) {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
   }
 }
 
@@ -613,6 +789,15 @@ function getActivationParticipant(entity) {
   }
 
   return entity.group;
+}
+
+function createSeededRandom(seed) {
+  let state = Math.abs(seed) || 1;
+
+  return () => {
+    state = (state * 16807) % 2147483647;
+    return (state - 1) / 2147483646;
+  };
 }
 
 function comparePositions(a, b) {

@@ -15,7 +15,7 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - Multiple entities may occupy the same cell during the simulation.
 - Resources never block movement.
 - Resources are static under the default resource ownership rule.
-- If resource ownership is configured as dropped-on-death, a dropped resource moves to the claimant's death cell.
+- If a claimed resource is dropped on death, it moves to the claimant's death cell.
 
 2. Input
 
@@ -30,6 +30,15 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - rules is optional.
 - If rules is not provided, default movement, activation order, and resource ownership rules are used.
 - rules.movement must be orthogonal or diagonal.
+- rules.activation is optional.
+- rules.activation.labMoveSteps must be a positive integer.
+- rules.activation.precinctMoveSteps must be a positive integer.
+- rules.activation.walkerMoveSteps must be a positive integer.
+- rules.activation.survivorMoveSteps is accepted as a backwards-compatible shortcut for both survivor groups.
+- rules.activation.interactionTiming must be after-each-step or after-activation.
+- rules.combat is optional.
+- rules.combat.survivorKillWalkerChance must be a number between 0 and 1.
+- rules.combat.randomSeed must be an integer.
 - rules.activationOrder must contain exactly Lab, Precinct, and Walker.
 - rules.resourceOwnership must be claimed-on-touch or dropped-on-death.
 
@@ -37,6 +46,11 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 
 - The simulation runs in discrete turns.
 - Every living entity gets at most one activation per turn.
+- An activation is an entity's opportunity to act during a turn.
+- By default, one activation allows one movement step toward the entity's target.
+- The number of movement steps in an activation can be configured separately for Lab survivors, Precinct survivors, and walkers.
+- By default, interactions are resolved after each movement step.
+- Interaction timing can be configured to resolve after the full activation instead.
 - By default, Lab survivors activate before Precinct survivors, and both survivor groups activate before walkers.
 - Activation order can be configured per scenario.
 - Entities within the same activation participant activate by id.
@@ -71,7 +85,7 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 
 6. Walker behaviour
 
-- Walkers are living entities for activation purposes, but they cannot be killed in this implementation.
+- Walkers are living entities for activation purposes and can be killed by survivors through the combat rule.
 - Walkers target the nearest living human survivor.
 - If multiple survivors are equally near, the walker chooses by reading order, then survivor id.
 - If there are no living humans, a walker stays in place.
@@ -79,14 +93,19 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 
 7. Interactions
 
-- A walker kills any living survivor sharing its cell.
+- A walker can kill a living survivor sharing its cell if the survivor fails their combat roll.
+- A survivor sharing a cell with a walker gets a combat roll first.
+- By default, the survivor has a 50% chance to kill one walker.
+- If the survivor fails the combat roll, a living walker kills that survivor.
+- Combat randomness uses a seed so repeated runs of the same scenario are reproducible.
 - Walker attacks are immediate once interactions are resolved.
 - If multiple walkers share a cell with a survivor, the survivor still dies once.
 - A dead survivor cannot claim resources.
 - If a walker and survivor start on the same cell, the survivor dies before the first normal turn.
 - If more than one living survivor is on an unclaimed resource at the same interaction point, the active survivor claims it when applicable; otherwise the deterministic entity order decides.
-- Claimed resources remain claimed forever under the default claimed-on-touch rule.
-- Under dropped-on-death, a resource claimed by a killed survivor becomes unclaimed again at the survivor's death cell.
+- By default, a resource claimed by a killed survivor becomes unclaimed again at the survivor's death cell.
+- dropped-on-death is the default and the more realistic resource ownership model because resources behave like physical items carried by survivors.
+- Under claimed-on-touch, claimed resources remain claimed forever.
 
 8. Ending conditions
 
@@ -116,5 +135,5 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - No pathfinding around obstacles is needed because the brief does not define obstacles.
 - No combat system is implemented between survivor groups because the brief only says they are competing for resources.
 - No walker health, survivor health, inventory, stamina, or resource types are modelled.
-- Resource carrying is only modelled when resourceOwnership is dropped-on-death.
+- Resource carrying is modelled by the default dropped-on-death resource ownership rule.
 - The project uses JavaScript and Node's built-in test runner to avoid external dependencies.

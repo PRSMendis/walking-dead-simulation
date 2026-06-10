@@ -15,8 +15,10 @@ The brief leaves movement, activation order, and interaction outcomes open. Inst
 Default rules preserve the initial implementation:
 
 - movement: orthogonal
+- activation: one movement step for Lab survivors, Precinct survivors, and walkers, with interactions after each step
+- combat: 50% survivor chance to kill one walker, with a fixed random seed
 - activationOrder: Lab, Precinct, Walker
-- resourceOwnership: claimed-on-touch
+- resourceOwnership: dropped-on-death
 
 The defaults keep simple scenarios concise while still allowing scenario authors to explore alternative interpretations.
 
@@ -31,6 +33,20 @@ movement: diagonal
 When diagonal movement is enabled, target distance uses Chebyshev distance rather than Manhattan distance. This matters because a target at (2, 2) is two moves away when diagonal movement is allowed, but four moves away with orthogonal-only movement.
 
 4. Activation order
+
+An activation is an entity's opportunity to act during a turn.
+
+By default, activation means:
+
+- choose the nearest relevant target
+- move one step toward that target
+- resolve interactions caused by the move
+
+This is now configurable because the brief explicitly asks the implementer to decide what activation means. The simulation supports different movement step counts for Lab survivors, Precinct survivors, and walkers, as well as interaction timing after each step or after the whole activation.
+
+This keeps the default behaviour simple, while allowing scenario authors to model faster walkers, more agile survivor groups, or less granular interaction resolution.
+
+5. Activation order
 
 The original implementation used this fixed order:
 
@@ -48,21 +64,23 @@ The configured activation order must contain exactly:
 
 Entities inside the same activation participant still act by id. This keeps the simulation deterministic even when the high-level order changes.
 
-5. Resource ownership after death
+6. Resource ownership after death
 
-The default resource policy is claimed-on-touch.
-
-Under this rule, a claimed resource represents successful retrieval for the group. If a walker later kills the individual survivor, the resource still counts for that survivor's group. This keeps scoring simple and supports the idea that claiming is a group-level outcome, not a fragile individual inventory item.
-
-The alternative policy is dropped-on-death.
+The default resource policy is dropped-on-death.
 
 Under this rule, the claimant is treated as carrying the resource. If they are killed, the resource becomes unclaimed again at the death cell. This creates a more dangerous and dynamic simulation, but it also adds more moving state.
 
+This is the more realistic policy because it models resources as physical items carried by survivors rather than abstract points awarded immediately to a group.
+
+The alternative policy is claimed-on-touch.
+
+Under claimed-on-touch, a claimed resource represents successful retrieval for the group. If a walker later kills the individual survivor, the resource still counts for that survivor's group. This keeps scoring simple and supports the idea that claiming is a group-level outcome, not a fragile individual inventory item.
+
 Both policies are valid interpretations of the brief. Making this configurable allows the scenario designer to choose the tone they want.
 
-6. Interaction timing
+7. Interaction timing
 
-Interactions are resolved after each entity moves.
+Interactions are resolved after each movement step by default.
 
 This gives the turn log a clear cause-and-effect sequence:
 
@@ -70,21 +88,27 @@ This gives the turn log a clear cause-and-effect sequence:
 - any collision or claim caused by that move resolves
 - the next entity activates
 
-If the simulation instead gathered all intended moves and resolved them simultaneously, some outcomes would be more symmetrical, but the implementation would need a larger conflict-resolution system. Sequential resolution is simpler to explain and easier to test.
+Alternatively, interaction timing can be configured as after-activation. In that mode, a multi-step activation resolves collisions and resource claims only after the entity has finished its configured movement steps.
 
-7. Walker and survivor interactions
+The simulation does not currently gather all intended moves and resolve a turn simultaneously. That could make some outcomes more symmetrical, but it would need a larger conflict-resolution system. Sequential resolution is simpler to explain and easier to test.
 
-Walkers kill survivors who share their cell. Walkers cannot be killed in the current implementation.
+8. Walker and survivor interactions
+
+Walkers and survivors can now kill each other.
+
+When a survivor and one or more walkers share a cell, the survivor gets a configurable combat roll. By default, that survivor has a 50% chance to kill one walker. If the survivor fails, a living walker kills them.
+
+Combat uses a seeded pseudo-random number generator. This keeps the simulation reproducible for tests and walkthroughs while still allowing probabilistic outcomes.
 
 Lab and Precinct survivors do not fight each other. The brief describes them as competing survivor groups, but it does not require direct combat. Keeping inter-human conflict out of scope focuses the simulation on resource competition and walker pressure.
 
-8. Ending conditions
+9. Ending conditions
 
 The brief requires the simulation to end when all resources are claimed or no humans remain alive.
 
 The implementation also supports maxTurns as a defensive guard. This prevents accidental infinite runs if a scenario is configured in a way that prevents either primary condition from happening.
 
-9. Winner calculation
+10. Winner calculation
 
 The primary score is claimed resource count.
 
@@ -92,7 +116,7 @@ If resources are tied, remaining living survivors are used as a tie-breaker. If 
 
 This keeps the winner calculation aligned with the core objective while still producing useful outcomes for tied resource scenarios.
 
-10. AI usage
+11. AI usage
 
 AI was useful for identifying ambiguities in the brief and exploring possible rule sets. The final choices prioritise determinism, configurability, and testability.
 

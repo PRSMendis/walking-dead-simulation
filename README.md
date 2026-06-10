@@ -15,6 +15,14 @@ Run the bundled sample scenario:
 npm start
 ```
 
+Run one of the alternate sample scenarios:
+
+```sh
+npm run run -- sample/diagonal-movement.json
+npm run run -- sample/fast-walkers.json
+npm run run -- sample/walker-first.json
+```
+
 Run a custom scenario:
 
 ```sh
@@ -35,8 +43,18 @@ npm test
   "maxTurns": 30,
   "rules": {
     "movement": "orthogonal",
+    "activation": {
+      "labMoveSteps": 1,
+      "precinctMoveSteps": 1,
+      "walkerMoveSteps": 1,
+      "interactionTiming": "after-each-step"
+    },
+    "combat": {
+      "survivorKillWalkerChance": 0.5,
+      "randomSeed": 1
+    },
     "activationOrder": ["Lab", "Precinct", "Walker"],
-    "resourceOwnership": "claimed-on-touch"
+    "resourceOwnership": "dropped-on-death"
   },
   "walkers": [{ "id": "W1", "x": 2, "y": 2 }],
   "labSurvivors": [{ "id": "L1", "x": 0, "y": 0 }],
@@ -51,6 +69,9 @@ The brief intentionally leaves movement, activation order, and interactions open
 
 - The grid uses zero-indexed `(x, y)` coordinates.
 - Rules are configurable through the optional `rules` object.
+- An activation is an entity's opportunity to act during a turn.
+- By default, activation means moving one step toward a target, then resolving interactions.
+- Activation behaviour can be changed with `rules.activation`.
 - By default, living Lab survivors activate first, then Precinct survivors, then walkers.
 - Activation order can be changed with `rules.activationOrder`.
 - Entities within the same activation participant move by ID.
@@ -61,7 +82,8 @@ The brief intentionally leaves movement, activation order, and interactions open
 - Entities cannot move outside the grid.
 - A survivor claims an unclaimed resource by occupying its cell while alive.
 - Claimed resources stay claimed by default, but `rules.resourceOwnership` can make them drop when the claimant dies.
-- A walker kills any survivor sharing its cell.
+- A survivor sharing a cell with a walker has a configurable chance to kill that walker.
+- If the survivor fails the combat roll, a walker kills them.
 - Lab and Precinct survivors do not fight each other. They are competing for resources, not directly attacking.
 - Walkers do not interact with other walkers.
 
@@ -75,8 +97,18 @@ The `rules` object is optional. If omitted, the simulation uses the default valu
 {
   "rules": {
     "movement": "orthogonal",
+    "activation": {
+      "labMoveSteps": 1,
+      "precinctMoveSteps": 1,
+      "walkerMoveSteps": 1,
+      "interactionTiming": "after-each-step"
+    },
+    "combat": {
+      "survivorKillWalkerChance": 0.5,
+      "randomSeed": 1
+    },
     "activationOrder": ["Lab", "Precinct", "Walker"],
-    "resourceOwnership": "claimed-on-touch"
+    "resourceOwnership": "dropped-on-death"
   }
 }
 ```
@@ -85,6 +117,20 @@ Supported `movement` values:
 
 - `orthogonal` - entities move up, right, down, or left, using Manhattan distance.
 - `diagonal` - entities can also move diagonally, using Chebyshev distance.
+
+Supported `activation` values:
+
+- `labMoveSteps` - positive integer for how many movement steps a Lab survivor can take per activation.
+- `precinctMoveSteps` - positive integer for how many movement steps a Precinct survivor can take per activation.
+- `walkerMoveSteps` - positive integer for how many movement steps a walker can take per activation.
+- `interactionTiming` - either `after-each-step` or `after-activation`.
+
+`survivorMoveSteps` is also accepted as a backwards-compatible shortcut that sets both `labMoveSteps` and `precinctMoveSteps` when those group-specific values are omitted.
+
+Supported `combat` values:
+
+- `survivorKillWalkerChance` - number from `0` to `1`. `0.5` means a survivor has roughly a 50% chance to kill one walker when sharing a cell.
+- `randomSeed` - integer seed used for reproducible combat rolls.
 
 Supported `activationOrder` values:
 
@@ -96,6 +142,8 @@ Supported `resourceOwnership` values:
 - `claimed-on-touch` - once claimed, a resource stays with that group even if the claimant later dies.
 - `dropped-on-death` - if the claimant dies, the resource becomes unclaimed again at the death cell.
 
+`dropped-on-death` is the default because it is the more realistic model: resources behave like physical items carried by survivors. `claimed-on-touch` remains available for simpler scoring where a claim is treated as an immediate group-level success.
+
 ## Winner
 
 The winner is the group with the most claimed resources. If resource counts are tied, the group with more living survivors wins. If both are still tied, the result is a draw.
@@ -105,6 +153,9 @@ The winner is the group with the most claimed resources. If resource counts are 
 - `src/simulation.js` - core simulation engine
 - `src/cli.js` - command-line entry point
 - `sample/scenario.json` - runnable sample input
+- `sample/diagonal-movement.json` - sample showing diagonal movement
+- `sample/fast-walkers.json` - sample showing different Lab, Precinct, and walker activation speeds
+- `sample/walker-first.json` - sample showing walkers activating before survivors
 - `test/simulation.test.js` - focused behaviour tests
 - `assumptions` - explicit assumptions made by the implementation
 - `design-decisions` - rationale for the configurable rules and trade-offs

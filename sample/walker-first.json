@@ -1,6 +1,6 @@
 {
-  "gridSize": 6,
-  "maxTurns": 30,
+  "gridSize": 4,
+  "maxTurns": 10,
   "rules": {
     "movement": "orthogonal",
     "activation": {
@@ -13,25 +13,21 @@
       "survivorKillWalkerChance": 0.5,
       "randomSeed": 1
     },
-    "activationOrder": ["Lab", "Precinct", "Walker"],
+    "activationOrder": ["Walker", "Lab", "Precinct"],
     "resourceOwnership": "dropped-on-death"
   },
   "walkers": [
-    { "id": "W1", "x": 2, "y": 2 },
-    { "id": "W2", "x": 3, "y": 4 }
+    { "id": "W1", "x": 1, "y": 0 },
+    { "id": "W2", "x": 3, "y": 3 }
   ],
   "labSurvivors": [
-    { "id": "L1", "x": 0, "y": 0 },
-    { "id": "L2", "x": 1, "y": 5 }
+    { "id": "L1", "x": 0, "y": 0 }
   ],
   "precinctSurvivors": [
-    { "id": "P1", "x": 5, "y": 5 },
-    { "id": "P2", "x": 5, "y": 0 }
+    { "id": "P1", "x": 3, "y": 1 }
   ],
   "resources": [
     { "id": "R1", "x": 1, "y": 0 },
-    { "id": "R2", "x": 4, "y": 5 },
-    { "id": "R3", "x": 3, "y": 1 },
-    { "id": "R4", "x": 0, "y": 4 }
+    { "id": "R2", "x": 2, "y": 1 }
   ]
 }
