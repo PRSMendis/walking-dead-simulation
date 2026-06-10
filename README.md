@@ -51,6 +51,7 @@ npm test
     },
     "combat": {
       "survivorKillWalkerChance": 0.5,
+      "interGroupSurvivorKillChance": 0,
       "randomSeed": 1
     },
     "activationOrder": ["Lab", "Precinct", "Walker"],
@@ -84,7 +85,7 @@ The brief intentionally leaves movement, activation order, and interactions open
 - Claimed resources stay claimed by default, but `rules.resourceOwnership` can make them drop when the claimant dies.
 - A survivor sharing a cell with a walker has a configurable chance to kill that walker.
 - If the survivor fails the combat roll, a walker kills them.
-- Lab and Precinct survivors do not fight each other. They are competing for resources, not directly attacking.
+- Lab and Precinct survivors do not fight by default, but inter-group survivor combat can be enabled.
 - Walkers do not interact with other walkers.
 
 The simulation ends when all resources have been claimed, no humans remain alive, or `maxTurns` is reached.
@@ -105,6 +106,7 @@ The `rules` object is optional. If omitted, the simulation uses the default valu
     },
     "combat": {
       "survivorKillWalkerChance": 0.5,
+      "interGroupSurvivorKillChance": 0,
       "randomSeed": 1
     },
     "activationOrder": ["Lab", "Precinct", "Walker"],
@@ -130,6 +132,7 @@ Supported `activation` values:
 Supported `combat` values:
 
 - `survivorKillWalkerChance` - number from `0` to `1`. `0.5` means a survivor has roughly a 50% chance to kill one walker when sharing a cell.
+- `interGroupSurvivorKillChance` - number from `0` to `1`. `0` means Lab and Precinct survivors do not attack each other; higher values allow them to kill opposing survivors when sharing a cell.
 - `randomSeed` - integer seed used for reproducible combat rolls.
 
 Supported `activationOrder` values:

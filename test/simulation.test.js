@@ -209,6 +209,47 @@ test("survivors can kill walkers when combat chance succeeds", () => {
   );
 });
 
+test("Lab and Precinct survivors do not kill each other by default", () => {
+  const result = runSimulation({
+    gridSize: 3,
+    maxTurns: 1,
+    walkers: [],
+    labSurvivors: [{ id: "L1", x: 1, y: 1 }],
+    precinctSurvivors: [{ id: "P1", x: 1, y: 1 }],
+    resources: [{ id: "R1", x: 2, y: 2 }],
+  });
+
+  assert.equal(result.survivorsRemaining[GROUPS.LAB], 1);
+  assert.equal(result.survivorsRemaining[GROUPS.PRECINCT], 1);
+  assert.doesNotMatch(
+    result.log.flatMap((turn) => turn.events).join("\n"),
+    /was killed by [LP]1/,
+  );
+});
+
+test("Lab and Precinct survivors can kill each other when configured", () => {
+  const result = runSimulation({
+    gridSize: 3,
+    maxTurns: 1,
+    rules: {
+      combat: {
+        interGroupSurvivorKillChance: 1,
+      },
+    },
+    walkers: [],
+    labSurvivors: [{ id: "L1", x: 1, y: 1 }],
+    precinctSurvivors: [{ id: "P1", x: 1, y: 1 }],
+    resources: [{ id: "R1", x: 2, y: 2 }],
+  });
+
+  assert.equal(result.survivorsRemaining[GROUPS.LAB], 1);
+  assert.equal(result.survivorsRemaining[GROUPS.PRECINCT], 0);
+  assert.match(
+    result.log.flatMap((turn) => turn.events).join("\n"),
+    /P1 \(Precinct\) was killed by L1/,
+  );
+});
+
 test("claimed resources can stay claimed if configured as claimed-on-touch", () => {
   const result = runSimulation({
     gridSize: 3,
@@ -357,6 +398,23 @@ test("scenario validation rejects invalid rules", () => {
         resources: [],
       }),
     /rules\.combat\.survivorKillWalkerChance/,
+  );
+
+  assert.throws(
+    () =>
+      validateScenario({
+        gridSize: 2,
+        rules: {
+          combat: {
+            interGroupSurvivorKillChance: -0.1,
+          },
+        },
+        walkers: [],
+        labSurvivors: [],
+        precinctSurvivors: [],
+        resources: [],
+      }),
+    /rules\.combat\.interGroupSurvivorKillChance/,
   );
 });
 

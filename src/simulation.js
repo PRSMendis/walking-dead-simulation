@@ -41,6 +41,7 @@ const DEFAULT_RULES = Object.freeze({
   }),
   combat: Object.freeze({
     survivorKillWalkerChance: 0.5,
+    interGroupSurvivorKillChance: 0,
     randomSeed: 1,
   }),
   activationOrder: Object.freeze([
@@ -344,6 +345,8 @@ function resolveInteractions(state, events, actorId = null) {
     if (walkers.length > 0 && survivors.length > 0) {
       resolveSurvivorWalkerCombat(state, survivors, walkers, events);
     }
+
+    resolveInterGroupSurvivorCombat(state, survivors, events);
   }
 
   for (const resource of state.resources) {
@@ -400,6 +403,39 @@ function resolveSurvivorWalkerCombat(state, survivors, walkers, events) {
       );
     } else {
       killSurvivor(state, survivor, livingWalkers, events);
+    }
+  }
+}
+
+function resolveInterGroupSurvivorCombat(state, survivors, events) {
+  if (state.rules.combat.interGroupSurvivorKillChance <= 0) {
+    return;
+  }
+
+  const orderedSurvivors = [...survivors].sort((a, b) =>
+    compareEntities(a, b, state.rules.activationOrder),
+  );
+
+  for (const survivor of orderedSurvivors) {
+    if (!survivor.alive) {
+      continue;
+    }
+
+    const opponents = survivors
+      .filter(
+        (candidate) =>
+          candidate.alive &&
+          candidate.group !== survivor.group,
+      )
+      .sort((a, b) => compareEntities(a, b, state.rules.activationOrder));
+
+    if (opponents.length === 0) {
+      return;
+    }
+
+    if (state.random() < state.rules.combat.interGroupSurvivorKillChance) {
+      const target = opponents[0];
+      killSurvivor(state, target, [survivor], events);
     }
   }
 }
@@ -472,10 +508,10 @@ function getNoTargetEvent(entity) {
   return `${entity.id} had no unclaimed resources to pursue.`;
 }
 
-function killSurvivor(state, survivor, walkers, events) {
+function killSurvivor(state, survivor, killers, events) {
   survivor.alive = false;
   events.push(
-    `${survivor.id} (${survivor.group}) was killed by ${walkers.map((walker) => walker.id).join(", ")} at ${formatPosition(survivor.position)}.`,
+    `${survivor.id} (${survivor.group}) was killed by ${killers.map((killer) => killer.id).join(", ")} at ${formatPosition(survivor.position)}.`,
   );
 
   if (state.rules.resourceOwnership !== RESOURCE_OWNERSHIP.DROPPED_ON_DEATH) {
@@ -639,6 +675,9 @@ function normalizeCombatRule(combat = {}) {
     survivorKillWalkerChance:
       combat.survivorKillWalkerChance ??
       DEFAULT_RULES.combat.survivorKillWalkerChance,
+    interGroupSurvivorKillChance:
+      combat.interGroupSurvivorKillChance ??
+      DEFAULT_RULES.combat.interGroupSurvivorKillChance,
     randomSeed: combat.randomSeed ?? DEFAULT_RULES.combat.randomSeed,
   };
 }
@@ -689,6 +728,14 @@ function validateCombatRule(combat) {
     combat.survivorKillWalkerChance > 1
   ) {
     throw new Error("rules.combat.survivorKillWalkerChance must be between 0 and 1.");
+  }
+
+  if (
+    typeof combat.interGroupSurvivorKillChance !== "number" ||
+    combat.interGroupSurvivorKillChance < 0 ||
+    combat.interGroupSurvivorKillChance > 1
+  ) {
+    throw new Error("rules.combat.interGroupSurvivorKillChance must be between 0 and 1.");
   }
 
   if (!Number.isInteger(combat.randomSeed)) {

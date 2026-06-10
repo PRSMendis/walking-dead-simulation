@@ -2,11 +2,11 @@ Ailo Walking Dead Simulation - Design Decisions
 
 This document explains the main design decisions behind the simulation, especially where the brief is intentionally ambiguous.
 
-1. Deterministic simulation over randomness
+1. Reproducible simulation over uncontrolled randomness
 
-The simulation is deterministic by default. Given the same input, it produces the same output every time.
+The simulation is reproducible by default. Given the same input and random seed, it produces the same output every time.
 
-This makes the result easier to test, debug, discuss in an interview, and evolve safely. Randomness could make the simulation feel more dramatic, but it would also make failures harder to reproduce unless a seeded random number generator was added.
+This makes the result easier to test, debug, discuss in an interview, and evolve safely. Random combat makes the simulation feel less mechanical, but it uses a seeded pseudo-random number generator so failures and walkthroughs can be reproduced.
 
 2. Configurable rules object
 
@@ -16,7 +16,7 @@ Default rules preserve the initial implementation:
 
 - movement: orthogonal
 - activation: one movement step for Lab survivors, Precinct survivors, and walkers, with interactions after each step
-- combat: 50% survivor chance to kill one walker, with a fixed random seed
+- combat: 50% survivor chance to kill one walker, 0% inter-group survivor kill chance, with a fixed random seed
 - activationOrder: Lab, Precinct, Walker
 - resourceOwnership: dropped-on-death
 
@@ -32,7 +32,7 @@ movement: diagonal
 
 When diagonal movement is enabled, target distance uses Chebyshev distance rather than Manhattan distance. This matters because a target at (2, 2) is two moves away when diagonal movement is allowed, but four moves away with orthogonal-only movement.
 
-4. Activation order
+4. Activation behaviour
 
 An activation is an entity's opportunity to act during a turn.
 
@@ -100,7 +100,9 @@ When a survivor and one or more walkers share a cell, the survivor gets a config
 
 Combat uses a seeded pseudo-random number generator. This keeps the simulation reproducible for tests and walkthroughs while still allowing probabilistic outcomes.
 
-Lab and Precinct survivors do not fight each other. The brief describes them as competing survivor groups, but it does not require direct combat. Keeping inter-human conflict out of scope focuses the simulation on resource competition and walker pressure.
+Lab and Precinct survivors do not fight each other by default. The brief describes them as competing survivor groups, but it does not specify whether human groups fight directly. Keeping inter-human conflict off by default focuses the base simulation on resource competition and walker pressure.
+
+Inter-group survivor combat can be enabled with interGroupSurvivorKillChance. When enabled, Lab and Precinct survivors sharing a cell can kill opposing survivors using the same seeded combat system. This supports harsher scenarios without making human-on-human violence the default interpretation of the brief.
 
 9. Ending conditions
 
@@ -120,4 +122,4 @@ This keeps the winner calculation aligned with the core objective while still pr
 
 AI was useful for identifying ambiguities in the brief and exploring possible rule sets. The final choices prioritise determinism, configurability, and testability.
 
-One example: random walker movement would have been easy to add, but it was rejected because it would make tests brittle and make the design harder to defend. Configurable deterministic rules give the simulation more flexibility without sacrificing reproducibility.
+One example: random walker movement would have been easy to add, but it was rejected because it would make tests brittle and make the design harder to defend. Seeded combat keeps the dramatic uncertainty in the part of the simulation where it matters most, while preserving reproducibility for tests and walkthroughs.

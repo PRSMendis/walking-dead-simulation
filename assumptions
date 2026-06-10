@@ -14,8 +14,9 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - Multiple entities may start on the same cell.
 - Multiple entities may occupy the same cell during the simulation.
 - Resources never block movement.
-- Resources are static under the default resource ownership rule.
-- If a claimed resource is dropped on death, it moves to the claimant's death cell.
+- Unclaimed resources stay at their configured positions.
+- Claimed resources can move back onto the grid if they are dropped on death.
+- Under the default dropped-on-death rule, a resource dropped by a killed claimant moves to the claimant's death cell.
 
 2. Input
 
@@ -38,6 +39,7 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - rules.activation.interactionTiming must be after-each-step or after-activation.
 - rules.combat is optional.
 - rules.combat.survivorKillWalkerChance must be a number between 0 and 1.
+- rules.combat.interGroupSurvivorKillChance must be a number between 0 and 1.
 - rules.combat.randomSeed must be an integer.
 - rules.activationOrder must contain exactly Lab, Precinct, and Walker.
 - rules.resourceOwnership must be claimed-on-touch or dropped-on-death.
@@ -56,12 +58,13 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - Entities within the same activation participant activate by id.
 - Activation order is recalculated at the start of each turn.
 - If an entity dies before its activation in the current turn, it does not act.
-- Interactions are resolved after each entity moves.
+- Interactions are resolved according to rules.activation.interactionTiming.
 - If the end condition is reached partway through a turn, the turn stops immediately.
 
 4. Movement
 
-- Entities move one cell per activation.
+- Entities move one cell per movement step.
+- An activation can include one or more movement steps.
 - Movement is orthogonal by default: up, right, down, or left.
 - Diagonal movement can be enabled per scenario.
 - Orthogonal movement uses Manhattan distance.
@@ -80,7 +83,8 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - A survivor claims an unclaimed resource by occupying its cell while alive.
 - If a survivor starts on an unclaimed resource, it can claim that resource before the first normal turn.
 - If there are no unclaimed resources, a survivor stays in place.
-- Lab and Precinct survivors do not fight, block, damage, or kill each other.
+- Lab and Precinct survivors do not fight, block, damage, or kill each other by default.
+- If inter-group survivor combat is enabled, Lab and Precinct survivors sharing a cell can kill opposing survivors through combat rolls.
 - Lab and Precinct survivors can occupy the same cell.
 
 6. Walker behaviour
@@ -97,11 +101,16 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - A survivor sharing a cell with a walker gets a combat roll first.
 - By default, the survivor has a 50% chance to kill one walker.
 - If the survivor fails the combat roll, a living walker kills that survivor.
+- By default, Lab and Precinct survivors have a 0% chance to kill each other.
+- If inter-group survivor combat is configured above 0, each living survivor sharing a cell with an opposing survivor gets a combat roll.
+- A successful inter-group survivor combat roll kills one opposing survivor.
+- A failed inter-group survivor combat roll does not cause a counter-kill by itself.
 - Combat randomness uses a seed so repeated runs of the same scenario are reproducible.
 - Walker attacks are immediate once interactions are resolved.
-- If multiple walkers share a cell with a survivor, the survivor still dies once.
+- If multiple walkers share a cell with a survivor, the survivor can kill at most one walker with a successful combat roll.
+- If the survivor fails the combat roll, one living walker kills that survivor.
 - A dead survivor cannot claim resources.
-- If a walker and survivor start on the same cell, the survivor dies before the first normal turn.
+- If a walker and survivor start on the same cell, combat resolves before the first normal turn.
 - If more than one living survivor is on an unclaimed resource at the same interaction point, the active survivor claims it when applicable; otherwise the deterministic entity order decides.
 - By default, a resource claimed by a killed survivor becomes unclaimed again at the survivor's death cell.
 - dropped-on-death is the default and the more realistic resource ownership model because resources behave like physical items carried by survivors.
@@ -131,9 +140,9 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 
 11. Implementation scope
 
-- The implementation prioritises deterministic, testable rules over randomness.
+- The implementation prioritises reproducible, testable rules; probabilistic combat uses a fixed seed by default.
 - No pathfinding around obstacles is needed because the brief does not define obstacles.
-- No combat system is implemented between survivor groups because the brief only says they are competing for resources.
+- Inter-group survivor combat is optional because the brief describes competition for resources but does not specify whether human groups fight directly.
 - No walker health, survivor health, inventory, stamina, or resource types are modelled.
 - Resource carrying is modelled by the default dropped-on-death resource ownership rule.
 - The project uses JavaScript and Node's built-in test runner to avoid external dependencies.

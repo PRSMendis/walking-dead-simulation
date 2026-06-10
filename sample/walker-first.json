@@ -11,6 +11,7 @@
     },
     "combat": {
       "survivorKillWalkerChance": 0.5,
+      "interGroupSurvivorKillChance": 0,
       "randomSeed": 1
     },
     "activationOrder": ["Walker", "Lab", "Precinct"],
