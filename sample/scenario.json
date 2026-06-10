@@ -1,6 +1,11 @@
 {
   "gridSize": 6,
   "maxTurns": 30,
+  "rules": {
+    "movement": "orthogonal",
+    "activationOrder": ["Lab", "Precinct", "Walker"],
+    "resourceOwnership": "claimed-on-touch"
+  },
   "walkers": [
     { "id": "W1", "x": 2, "y": 2 },
     { "id": "W2", "x": 3, "y": 4 }

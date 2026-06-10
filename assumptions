@@ -13,7 +13,9 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - All starting positions must be inside the grid.
 - Multiple entities may start on the same cell.
 - Multiple entities may occupy the same cell during the simulation.
-- Resources are static and never block movement.
+- Resources never block movement.
+- Resources are static under the default resource ownership rule.
+- If resource ownership is configured as dropped-on-death, a dropped resource moves to the claimant's death cell.
 
 2. Input
 
@@ -25,14 +27,19 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - maxTurns is optional.
 - If maxTurns is not provided, the simulation uses a default of 100 turns.
 - maxTurns exists as a guard against accidental infinite simulations.
+- rules is optional.
+- If rules is not provided, default movement, activation order, and resource ownership rules are used.
+- rules.movement must be orthogonal or diagonal.
+- rules.activationOrder must contain exactly Lab, Precinct, and Walker.
+- rules.resourceOwnership must be claimed-on-touch or dropped-on-death.
 
 3. Turns and activation
 
 - The simulation runs in discrete turns.
 - Every living entity gets at most one activation per turn.
-- Survivors activate before walkers.
-- Lab survivors activate before Precinct survivors.
-- Entities within the same type and group activate by id.
+- By default, Lab survivors activate before Precinct survivors, and both survivor groups activate before walkers.
+- Activation order can be configured per scenario.
+- Entities within the same activation participant activate by id.
 - Activation order is recalculated at the start of each turn.
 - If an entity dies before its activation in the current turn, it does not act.
 - Interactions are resolved after each entity moves.
@@ -41,9 +48,11 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 4. Movement
 
 - Entities move one cell per activation.
-- Movement is orthogonal only: up, right, down, or left.
-- Diagonal movement is not allowed.
-- Entities choose the move that most reduces Manhattan distance to their target.
+- Movement is orthogonal by default: up, right, down, or left.
+- Diagonal movement can be enabled per scenario.
+- Orthogonal movement uses Manhattan distance.
+- Diagonal movement uses Chebyshev distance.
+- Entities choose the move that most reduces distance to their target.
 - If more than one move is equally good, ties are resolved by reading order: top to bottom, then left to right.
 - If no move would reduce distance to the target, the entity stays in place.
 - Entities can move through cells containing other entities or resources.
@@ -76,7 +85,8 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - A dead survivor cannot claim resources.
 - If a walker and survivor start on the same cell, the survivor dies before the first normal turn.
 - If more than one living survivor is on an unclaimed resource at the same interaction point, the active survivor claims it when applicable; otherwise the deterministic entity order decides.
-- Claimed resources remain claimed forever.
+- Claimed resources remain claimed forever under the default claimed-on-touch rule.
+- Under dropped-on-death, a resource claimed by a killed survivor becomes unclaimed again at the survivor's death cell.
 
 8. Ending conditions
 
@@ -106,4 +116,5 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - No pathfinding around obstacles is needed because the brief does not define obstacles.
 - No combat system is implemented between survivor groups because the brief only says they are competing for resources.
 - No walker health, survivor health, inventory, stamina, or resource types are modelled.
+- Resource carrying is only modelled when resourceOwnership is dropped-on-death.
 - The project uses JavaScript and Node's built-in test runner to avoid external dependencies.

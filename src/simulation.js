@@ -8,13 +8,47 @@ export const ENTITY_TYPES = Object.freeze({
   WALKER: "walker",
 });
 
+export const MOVEMENT_MODES = Object.freeze({
+  ORTHOGONAL: "orthogonal",
+  DIAGONAL: "diagonal",
+});
+
+export const RESOURCE_OWNERSHIP = Object.freeze({
+  CLAIMED_ON_TOUCH: "claimed-on-touch",
+  DROPPED_ON_DEATH: "dropped-on-death",
+});
+
+export const ACTIVATION_PARTICIPANTS = Object.freeze({
+  LAB: GROUPS.LAB,
+  PRECINCT: GROUPS.PRECINCT,
+  WALKER: "Walker",
+});
+
 const DEFAULT_MAX_TURNS = 100;
 
-const DIRECTIONS = Object.freeze([
+const DEFAULT_RULES = Object.freeze({
+  movement: MOVEMENT_MODES.ORTHOGONAL,
+  activationOrder: Object.freeze([
+    ACTIVATION_PARTICIPANTS.LAB,
+    ACTIVATION_PARTICIPANTS.PRECINCT,
+    ACTIVATION_PARTICIPANTS.WALKER,
+  ]),
+  resourceOwnership: RESOURCE_OWNERSHIP.CLAIMED_ON_TOUCH,
+});
+
+const ORTHOGONAL_DIRECTIONS = Object.freeze([
   { x: 0, y: -1 },
   { x: 1, y: 0 },
   { x: 0, y: 1 },
   { x: -1, y: 0 },
+]);
+
+const DIAGONAL_DIRECTIONS = Object.freeze([
+  ...ORTHOGONAL_DIRECTIONS,
+  { x: -1, y: -1 },
+  { x: 1, y: -1 },
+  { x: 1, y: 1 },
+  { x: -1, y: 1 },
 ]);
 
 export function runSimulation(scenario) {
@@ -71,7 +105,9 @@ export function runSimulation(scenario) {
       id: resource.id,
       position: { ...resource.position },
       claimedBy: resource.claimedBy,
+      claimedByEntityId: resource.claimedByEntityId,
     })),
+    rules: { ...state.rules, activationOrder: [...state.rules.activationOrder] },
     log,
   };
 }
@@ -91,6 +127,8 @@ export function validateScenario(scenario) {
   ) {
     throw new Error("maxTurns must be a positive integer when provided.");
   }
+
+  normalizeRules(scenario.rules);
 
   const collections = [
     ["walkers", scenario.walkers],
@@ -129,6 +167,7 @@ export function validateScenario(scenario) {
 export function createInitialState(scenario) {
   return {
     gridSize: scenario.gridSize,
+    rules: normalizeRules(scenario.rules),
     entities: [
       ...scenario.labSurvivors.map((survivor) =>
         createSurvivor(survivor, GROUPS.LAB),
@@ -147,27 +186,39 @@ export function createInitialState(scenario) {
       id: resource.id,
       position: { x: resource.x, y: resource.y },
       claimedBy: null,
+      claimedByEntityId: null,
     })),
   };
 }
 
-export function nextStepToward(from, target, gridSize) {
+export function nextStepToward(
+  from,
+  target,
+  gridSize,
+  movement = MOVEMENT_MODES.ORTHOGONAL,
+) {
   if (positionsEqual(from, target)) {
     return { ...from };
   }
 
-  const candidates = DIRECTIONS.map((direction) => ({
+  const candidates = getDirections(movement).map((direction) => ({
     x: from.x + direction.x,
     y: from.y + direction.y,
   })).filter((position) => isInBounds(position, gridSize));
 
   candidates.sort((a, b) => {
-    const distanceDelta = manhattanDistance(a, target) - manhattanDistance(b, target);
+    const distanceDelta =
+      distanceForMovement(a, target, movement) -
+      distanceForMovement(b, target, movement);
     return distanceDelta || comparePositions(a, b);
   });
 
   const best = candidates[0];
-  if (!best || manhattanDistance(best, target) >= manhattanDistance(from, target)) {
+  if (
+    !best ||
+    distanceForMovement(best, target, movement) >=
+      distanceForMovement(from, target, movement)
+  ) {
     return { ...from };
   }
 
@@ -217,6 +268,7 @@ function activateSurvivor(state, survivor, events) {
   const target = findNearestTarget(
     survivor.position,
     state.resources.filter((resource) => resource.claimedBy === null),
+    state.rules.movement,
   );
 
   if (!target) {
@@ -233,6 +285,7 @@ function activateWalker(state, walker, events) {
     state.entities.filter(
       (entity) => entity.type === ENTITY_TYPES.SURVIVOR && entity.alive,
     ),
+    state.rules.movement,
   );
 
   if (!target) {
@@ -245,7 +298,12 @@ function activateWalker(state, walker, events) {
 
 function moveEntityToward(state, entity, targetPosition, events, targetId) {
   const from = { ...entity.position };
-  const to = nextStepToward(from, targetPosition, state.gridSize);
+  const to = nextStepToward(
+    from,
+    targetPosition,
+    state.gridSize,
+    state.rules.movement,
+  );
   entity.position = to;
 
   if (positionsEqual(from, to)) {
@@ -269,10 +327,7 @@ function resolveInteractions(state, events, actorId = null) {
 
     if (walkers.length > 0 && survivors.length > 0) {
       for (const survivor of survivors) {
-        survivor.alive = false;
-        events.push(
-          `${survivor.id} (${survivor.group}) was killed by ${walkers.map((walker) => walker.id).join(", ")} at ${formatPosition(survivor.position)}.`,
-        );
+        killSurvivor(state, survivor, walkers, events);
       }
     }
   }
@@ -289,7 +344,7 @@ function resolveInteractions(state, events, actorId = null) {
           entity.alive &&
           positionsEqual(entity.position, resource.position),
       )
-      .sort(compareEntities);
+      .sort((a, b) => compareEntities(a, b, state.rules.activationOrder));
 
     if (survivorsAtResource.length === 0) {
       continue;
@@ -298,6 +353,7 @@ function resolveInteractions(state, events, actorId = null) {
     const actor = survivorsAtResource.find((survivor) => survivor.id === actorId);
     const claimant = actor ?? survivorsAtResource[0];
     resource.claimedBy = claimant.group;
+    resource.claimedByEntityId = claimant.id;
     events.push(
       `${claimant.id} claimed ${resource.id} for ${claimant.group} at ${formatPosition(resource.position)}.`,
     );
@@ -307,45 +363,55 @@ function resolveInteractions(state, events, actorId = null) {
 function getActivationOrder(state) {
   return state.entities
     .filter((entity) => entity.alive)
-    .sort(compareEntities)
+    .sort((a, b) => compareEntities(a, b, state.rules.activationOrder))
     .map((entity) => entity.id);
 }
 
-function compareEntities(a, b) {
-  const typeOrder = {
-    [ENTITY_TYPES.SURVIVOR]: 0,
-    [ENTITY_TYPES.WALKER]: 1,
-  };
-
-  const typeDelta = typeOrder[a.type] - typeOrder[b.type];
-  if (typeDelta !== 0) {
-    return typeDelta;
-  }
-
-  const groupDelta = getGroupOrder(a.group) - getGroupOrder(b.group);
-  if (groupDelta !== 0) {
-    return groupDelta;
-  }
-
-  return a.id.localeCompare(b.id);
+function compareEntities(a, b, activationOrder) {
+  const activationIndexes = new Map(
+    activationOrder.map((participant, index) => [participant, index]),
+  );
+  const orderDelta =
+    activationIndexes.get(getActivationParticipant(a)) -
+    activationIndexes.get(getActivationParticipant(b));
+  return orderDelta || a.id.localeCompare(b.id);
 }
 
-function getGroupOrder(group) {
-  if (group === GROUPS.LAB) {
-    return 0;
-  }
-  if (group === GROUPS.PRECINCT) {
-    return 1;
-  }
-  return 2;
-}
-
-function findNearestTarget(from, targets) {
+function findNearestTarget(from, targets, movement) {
   return [...targets].sort((a, b) => {
     const distanceDelta =
-      manhattanDistance(from, a.position) - manhattanDistance(from, b.position);
-    return distanceDelta || comparePositions(a.position, b.position) || a.id.localeCompare(b.id);
+      distanceForMovement(from, a.position, movement) -
+      distanceForMovement(from, b.position, movement);
+    return (
+      distanceDelta ||
+      comparePositions(a.position, b.position) ||
+      a.id.localeCompare(b.id)
+    );
   })[0];
+}
+
+function killSurvivor(state, survivor, walkers, events) {
+  survivor.alive = false;
+  events.push(
+    `${survivor.id} (${survivor.group}) was killed by ${walkers.map((walker) => walker.id).join(", ")} at ${formatPosition(survivor.position)}.`,
+  );
+
+  if (state.rules.resourceOwnership !== RESOURCE_OWNERSHIP.DROPPED_ON_DEATH) {
+    return;
+  }
+
+  for (const resource of state.resources) {
+    if (resource.claimedByEntityId !== survivor.id) {
+      continue;
+    }
+
+    resource.claimedBy = null;
+    resource.claimedByEntityId = null;
+    resource.position = { ...survivor.position };
+    events.push(
+      `${survivor.id} dropped ${resource.id}; it is now unclaimed at ${formatPosition(resource.position)}.`,
+    );
+  }
 }
 
 function occupiedCells(entities) {
@@ -424,6 +490,80 @@ function buildSummary(state) {
   };
 }
 
+function normalizeRules(rules = {}) {
+  if (rules === undefined) {
+    return {
+      ...DEFAULT_RULES,
+      activationOrder: [...DEFAULT_RULES.activationOrder],
+    };
+  }
+
+  if (!rules || typeof rules !== "object" || Array.isArray(rules)) {
+    throw new Error("rules must be an object when provided.");
+  }
+
+  const normalized = {
+    movement: rules.movement ?? DEFAULT_RULES.movement,
+    activationOrder: rules.activationOrder ?? [...DEFAULT_RULES.activationOrder],
+    resourceOwnership: rules.resourceOwnership ?? DEFAULT_RULES.resourceOwnership,
+  };
+
+  validateMovementRule(normalized.movement);
+  validateActivationOrder(normalized.activationOrder);
+  validateResourceOwnership(normalized.resourceOwnership);
+
+  return {
+    ...normalized,
+    activationOrder: [...normalized.activationOrder],
+  };
+}
+
+function validateMovementRule(movement) {
+  if (!Object.values(MOVEMENT_MODES).includes(movement)) {
+    throw new Error(
+      `rules.movement must be one of: ${Object.values(MOVEMENT_MODES).join(", ")}.`,
+    );
+  }
+}
+
+function validateActivationOrder(activationOrder) {
+  const validParticipants = Object.values(ACTIVATION_PARTICIPANTS);
+
+  if (!Array.isArray(activationOrder)) {
+    throw new Error("rules.activationOrder must be an array.");
+  }
+
+  if (activationOrder.length !== validParticipants.length) {
+    throw new Error(
+      `rules.activationOrder must include exactly: ${validParticipants.join(", ")}.`,
+    );
+  }
+
+  const seen = new Set();
+  for (const participant of activationOrder) {
+    if (!validParticipants.includes(participant)) {
+      throw new Error(
+        `rules.activationOrder contains unknown participant: ${participant}.`,
+      );
+    }
+
+    if (seen.has(participant)) {
+      throw new Error(
+        `rules.activationOrder contains duplicate participant: ${participant}.`,
+      );
+    }
+    seen.add(participant);
+  }
+}
+
+function validateResourceOwnership(resourceOwnership) {
+  if (!Object.values(RESOURCE_OWNERSHIP).includes(resourceOwnership)) {
+    throw new Error(
+      `rules.resourceOwnership must be one of: ${Object.values(RESOURCE_OWNERSHIP).join(", ")}.`,
+    );
+  }
+}
+
 function assertPositionInBounds(position, gridSize, id) {
   if (!Number.isInteger(position.x) || !Number.isInteger(position.y)) {
     throw new Error(`${id} must have integer x and y coordinates.`);
@@ -445,6 +585,34 @@ function isInBounds(position, gridSize) {
 
 function manhattanDistance(a, b) {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function chebyshevDistance(a, b) {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+function distanceForMovement(a, b, movement) {
+  if (movement === MOVEMENT_MODES.DIAGONAL) {
+    return chebyshevDistance(a, b);
+  }
+
+  return manhattanDistance(a, b);
+}
+
+function getDirections(movement) {
+  if (movement === MOVEMENT_MODES.DIAGONAL) {
+    return DIAGONAL_DIRECTIONS;
+  }
+
+  return ORTHOGONAL_DIRECTIONS;
+}
+
+function getActivationParticipant(entity) {
+  if (entity.type === ENTITY_TYPES.WALKER) {
+    return ACTIVATION_PARTICIPANTS.WALKER;
+  }
+
+  return entity.group;
 }
 
 function comparePositions(a, b) {
