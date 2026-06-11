@@ -712,12 +712,17 @@ test("all sample scenarios run successfully", async () => {
     .sort();
 
   assert.deepEqual(sampleFiles, [
+    "chaos-human-conflict.json",
     "diagonal-movement.json",
     "fast-walkers.json",
     "lab-advantage.json",
+    "lab-narrow-win.json",
+    "max-turn-stalemate.json",
     "precinct-advantage.json",
+    "precinct-narrow-win.json",
     "scenario.json",
     "walker-first.json",
+    "walker-overrun.json",
   ]);
 
   const expectedOutcomes: Record<string, {
@@ -725,6 +730,11 @@ test("all sample scenarios run successfully", async () => {
     reason: string;
     scores: ScoreByGroup;
   }> = {
+    "chaos-human-conflict.json": {
+      winner: GROUPS.LAB,
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 2, [GROUPS.PRECINCT]: 0 },
+    },
     "diagonal-movement.json": {
       winner: "Draw",
       reason: "All resources have been claimed.",
@@ -740,10 +750,25 @@ test("all sample scenarios run successfully", async () => {
       reason: "All resources have been claimed.",
       scores: { [GROUPS.LAB]: 3, [GROUPS.PRECINCT]: 0 },
     },
+    "lab-narrow-win.json": {
+      winner: GROUPS.LAB,
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 2, [GROUPS.PRECINCT]: 1 },
+    },
+    "max-turn-stalemate.json": {
+      winner: "Draw",
+      reason: "Reached maxTurns (1).",
+      scores: { [GROUPS.LAB]: 0, [GROUPS.PRECINCT]: 0 },
+    },
     "precinct-advantage.json": {
       winner: GROUPS.PRECINCT,
       reason: "All resources have been claimed.",
       scores: { [GROUPS.LAB]: 0, [GROUPS.PRECINCT]: 3 },
+    },
+    "precinct-narrow-win.json": {
+      winner: GROUPS.PRECINCT,
+      reason: "All resources have been claimed.",
+      scores: { [GROUPS.LAB]: 1, [GROUPS.PRECINCT]: 2 },
     },
     "scenario.json": {
       winner: "Draw",
@@ -755,7 +780,15 @@ test("all sample scenarios run successfully", async () => {
       reason: "All resources have been claimed.",
       scores: { [GROUPS.LAB]: 1, [GROUPS.PRECINCT]: 1 },
     },
+    "walker-overrun.json": {
+      winner: "Draw",
+      reason: "No humans remain alive.",
+      scores: { [GROUPS.LAB]: 0, [GROUPS.PRECINCT]: 0 },
+    },
   };
+
+  const observedWinners = new Set<Winner>();
+  const observedReasons = new Set<string>();
 
   for (const sampleFile of sampleFiles) {
     const samplePath = join(sampleDir, sampleFile);
@@ -763,9 +796,24 @@ test("all sample scenarios run successfully", async () => {
     const result = runSimulation(scenario);
     const expected = expectedOutcomes[sampleFile];
 
+    observedWinners.add(result.winner);
+    observedReasons.add(result.reason);
     assert.equal(result.winner, expected.winner, `${sampleFile} winner`);
     assert.equal(result.reason, expected.reason, `${sampleFile} reason`);
     assert.deepEqual(result.scores, expected.scores, `${sampleFile} scores`);
     assert.ok(result.log.length > 0, `${sampleFile} should produce a turn log`);
   }
+
+  assert.deepEqual(
+    [...observedWinners].sort(),
+    ["Draw", GROUPS.LAB, GROUPS.PRECINCT].sort(),
+  );
+  assert.deepEqual(
+    [...observedReasons].sort(),
+    [
+      "All resources have been claimed.",
+      "No humans remain alive.",
+      "Reached maxTurns (1).",
+    ].sort(),
+  );
 });

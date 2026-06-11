@@ -1,0 +1,21 @@
+{
+  "gridSize": 5,
+  "maxTurns": 1,
+  "rules": {
+    "combat": {
+      "survivorKillWalkerChance": 0.5,
+      "interGroupSurvivorKillChance": 0,
+      "randomSeed": 1
+    }
+  },
+  "walkers": [],
+  "labSurvivors": [
+    { "id": "L1", "x": 0, "y": 0 }
+  ],
+  "precinctSurvivors": [
+    { "id": "P1", "x": 4, "y": 4 }
+  ],
+  "resources": [
+    { "id": "R1", "x": 4, "y": 0 }
+  ]
+}

@@ -24,11 +24,16 @@ npm start
 Run one of the alternate sample scenarios:
 
 ```sh
+npm run run -- sample/chaos-human-conflict.json
 npm run run -- sample/diagonal-movement.json
 npm run run -- sample/fast-walkers.json
 npm run run -- sample/lab-advantage.json
+npm run run -- sample/lab-narrow-win.json
+npm run run -- sample/max-turn-stalemate.json
 npm run run -- sample/precinct-advantage.json
+npm run run -- sample/precinct-narrow-win.json
 npm run run -- sample/walker-first.json
+npm run run -- sample/walker-overrun.json
 ```
 
 Run a custom scenario:
@@ -170,11 +175,16 @@ The winner is the group with the most claimed resources. If resource counts are 
 - `src/rules.ts`, `src/random.ts`, `src/constants.ts` - rule normalization, seeded randomness, and shared constants
 - `src/cli.ts` - command-line entry point
 - `sample/scenario.json` - runnable sample input
+- `sample/chaos-human-conflict.json` - sample showing inter-group combat and dropped resources
 - `sample/diagonal-movement.json` - sample showing diagonal movement
 - `sample/fast-walkers.json` - sample showing different Lab, Precinct, and walker activation speeds
 - `sample/lab-advantage.json` - sample tuned to produce a Lab win
+- `sample/lab-narrow-win.json` - sample tuned to produce a narrow Lab win
+- `sample/max-turn-stalemate.json` - sample showing the maxTurns guard ending
 - `sample/precinct-advantage.json` - sample tuned to produce a Precinct win
+- `sample/precinct-narrow-win.json` - sample tuned to produce a narrow Precinct win
 - `sample/walker-first.json` - sample showing walkers activating before survivors
+- `sample/walker-overrun.json` - sample ending when no humans remain alive
 - `test/simulation.test.ts` - focused behaviour tests
 - `assumptions` - explicit assumptions made by the implementation
 - `design-decisions` - rationale for the configurable rules and trade-offs

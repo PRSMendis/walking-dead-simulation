@@ -145,4 +145,6 @@ The exercise brief intentionally leaves several behaviours open. These are the a
 - Inter-group survivor combat is optional because the brief describes competition for resources but does not specify whether human groups fight directly.
 - No walker health, survivor health, inventory, stamina, or resource types are modelled.
 - Resource carrying is modelled by the default dropped-on-death resource ownership rule.
-- The project uses JavaScript and Node's built-in test runner to avoid external dependencies.
+- The project uses TypeScript for maintainability and explicit simulation interfaces.
+- TypeScript and Node type definitions are development dependencies; the compiled application runs on Node.js.
+- Tests use Node's built-in test runner.
