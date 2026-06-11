@@ -81,11 +81,11 @@ export function validateScenario(scenario: unknown): asserts scenario is Scenari
       }
       ids.add(itemCandidate.id);
 
-      assertPositionInBounds(
-        { x: itemCandidate.x, y: itemCandidate.y },
+      assertPositionInBounds({
+        position: { x: itemCandidate.x, y: itemCandidate.y },
         gridSize,
-        itemCandidate.id,
-      );
+        id: itemCandidate.id,
+      });
     }
   }
 }
@@ -98,10 +98,10 @@ export function createInitialState(scenario: Scenario): SimulationState {
     random: createSeededRandom(rules.combat.randomSeed),
     entities: [
       ...scenario.labSurvivors.map((survivor) =>
-        createSurvivor(survivor, GROUPS.LAB),
+        createSurvivor({ survivor, group: GROUPS.LAB }),
       ),
       ...scenario.precinctSurvivors.map((survivor) =>
-        createSurvivor(survivor, GROUPS.PRECINCT),
+        createSurvivor({ survivor, group: GROUPS.PRECINCT }),
       ),
       ...scenario.walkers.map((walker) => ({
         id: walker.id,
@@ -139,18 +139,22 @@ export function determineWinner(state: SimulationState): Winner {
   return "Draw";
 }
 
-export function compareEntities(
-  a: Entity,
-  b: Entity,
-  activationOrder: ActivationParticipant[],
-): number {
+export function compareEntities({
+  first,
+  second,
+  activationOrder,
+}: {
+  first: Entity;
+  second: Entity;
+  activationOrder: ActivationParticipant[];
+}): number {
   const activationIndexes = new Map(
     activationOrder.map((participant, index) => [participant, index]),
   );
   const orderDelta =
-    (activationIndexes.get(getActivationParticipant(a)) ?? Number.MAX_SAFE_INTEGER) -
-    (activationIndexes.get(getActivationParticipant(b)) ?? Number.MAX_SAFE_INTEGER);
-  return orderDelta || a.id.localeCompare(b.id);
+    (activationIndexes.get(getActivationParticipant(first)) ?? Number.MAX_SAFE_INTEGER) -
+    (activationIndexes.get(getActivationParticipant(second)) ?? Number.MAX_SAFE_INTEGER);
+  return orderDelta || first.id.localeCompare(second.id);
 }
 
 export function occupiedCells(entities: Entity[]): IterableIterator<OccupiedCell> {
@@ -168,11 +172,15 @@ export function isComplete(state: SimulationState): boolean {
   return allResourcesClaimed(state) || noHumansRemain(state);
 }
 
-export function getEndReason(
-  state: SimulationState,
-  turn: number,
-  maxTurns: number,
-): string {
+export function getEndReason({
+  state,
+  turn,
+  maxTurns,
+}: {
+  state: SimulationState;
+  turn: number;
+  maxTurns: number;
+}): string {
   if (allResourcesClaimed(state)) {
     return "All resources have been claimed.";
   }
@@ -223,7 +231,13 @@ export function buildSummary(state: SimulationState): TurnSummary {
   };
 }
 
-function createSurvivor(survivor: ScenarioEntityInput, group: Group): SurvivorEntity {
+function createSurvivor({
+  survivor,
+  group,
+}: {
+  survivor: ScenarioEntityInput;
+  group: Group;
+}): SurvivorEntity {
   return {
     id: survivor.id,
     type: ENTITY_TYPES.SURVIVOR,
@@ -251,17 +265,21 @@ function getActivationParticipant(entity: Entity): ActivationParticipant {
   return entity.group;
 }
 
-function assertPositionInBounds(
-  position: { x: unknown; y: unknown },
-  gridSize: number,
-  id: string,
-): void {
+function assertPositionInBounds({
+  position,
+  gridSize,
+  id,
+}: {
+  position: { x: unknown; y: unknown };
+  gridSize: number;
+  id: string;
+}): void {
   if (!Number.isInteger(position.x) || !Number.isInteger(position.y)) {
     throw new Error(`${id} must have integer x and y coordinates.`);
   }
 
   const validatedPosition = position as Position;
-  if (!isInBounds(validatedPosition, gridSize)) {
+  if (!isInBounds({ position: validatedPosition, gridSize })) {
     throw new Error(`${id} position ${formatPosition(validatedPosition)} is outside the grid.`);
   }
 }

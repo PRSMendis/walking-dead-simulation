@@ -23,20 +23,39 @@ import type {
 } from "../src/simulation.js";
 
 test("nextStepToward moves one cell and stays inside the grid", () => {
-  assert.deepEqual(nextStepToward({ x: 0, y: 0 }, { x: 3, y: 0 }, 4), {
-    x: 1,
-    y: 0,
-  });
+  assert.deepEqual(
+    nextStepToward({
+      from: { x: 0, y: 0 },
+      target: { x: 3, y: 0 },
+      gridSize: 4,
+    }),
+    {
+      x: 1,
+      y: 0,
+    },
+  );
 
-  assert.deepEqual(nextStepToward({ x: 0, y: 0 }, { x: 0, y: -1 }, 4), {
-    x: 0,
-    y: 0,
-  });
+  assert.deepEqual(
+    nextStepToward({
+      from: { x: 0, y: 0 },
+      target: { x: 0, y: -1 },
+      gridSize: 4,
+    }),
+    {
+      x: 0,
+      y: 0,
+    },
+  );
 });
 
 test("nextStepToward can use diagonal movement when configured", () => {
   assert.deepEqual(
-    nextStepToward({ x: 0, y: 0 }, { x: 2, y: 2 }, 4, MOVEMENT_MODES.DIAGONAL),
+    nextStepToward({
+      from: { x: 0, y: 0 },
+      target: { x: 2, y: 2 },
+      gridSize: 4,
+      movement: MOVEMENT_MODES.DIAGONAL,
+    }),
     {
       x: 1,
       y: 1,

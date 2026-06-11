@@ -115,18 +115,18 @@ function validateMovementRule(movement: MovementMode): void {
 }
 
 function validateActivationRule(activation: ActivationRules): void {
-  validatePositiveIntegerRule(
-    activation.labMoveSteps,
-    "rules.activation.labMoveSteps",
-  );
-  validatePositiveIntegerRule(
-    activation.precinctMoveSteps,
-    "rules.activation.precinctMoveSteps",
-  );
-  validatePositiveIntegerRule(
-    activation.walkerMoveSteps,
-    "rules.activation.walkerMoveSteps",
-  );
+  validatePositiveIntegerRule({
+    value: activation.labMoveSteps,
+    name: "rules.activation.labMoveSteps",
+  });
+  validatePositiveIntegerRule({
+    value: activation.precinctMoveSteps,
+    name: "rules.activation.precinctMoveSteps",
+  });
+  validatePositiveIntegerRule({
+    value: activation.walkerMoveSteps,
+    name: "rules.activation.walkerMoveSteps",
+  });
 
   if (!Object.values(INTERACTION_TIMING).includes(activation.interactionTiming)) {
     throw new Error(
@@ -157,7 +157,13 @@ function validateCombatRule(combat: CombatRules): void {
   }
 }
 
-function validatePositiveIntegerRule(value: number, name: string): void {
+function validatePositiveIntegerRule({
+  value,
+  name,
+}: {
+  value: number;
+  name: string;
+}): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer.`);
   }

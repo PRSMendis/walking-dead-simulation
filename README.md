@@ -5,15 +5,32 @@ A deterministic turn-based simulation for the Ailo coding exercise.
 ## Requirements
 
 - Node.js 18 or newer
-- npm install
+- npm
 
-## Run
+## Setup
 
-Install dependencies first:
+From a fresh clone:
 
 ```sh
-npm install
+git clone https://github.com/PRSMendis/walking-dead-simulation.git
+cd walking-dead-simulation
+npm ci
+npm run check
 ```
+
+Use `npm install` instead of `npm ci` when intentionally updating dependencies.
+
+## Common Commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm start` | Run the bundled sample scenario with the full event log. |
+| `npm run simulate -- sample/scenario.json` | Run one scenario file. |
+| `npm run simulate:all` | Run every sample scenario as a compact summary. |
+| `npm test` | Build TypeScript and run the test suite. |
+| `npm run check` | Run tests and all sample scenarios. |
+
+## Run Scenarios
 
 Run the bundled sample scenario:
 
@@ -46,12 +63,6 @@ Run a custom scenario:
 
 ```sh
 npm run simulate -- path/to/scenario.json
-```
-
-## Test
-
-```sh
-npm test
 ```
 
 ## Input Format

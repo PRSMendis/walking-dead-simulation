@@ -132,9 +132,11 @@ The TypeScript interfaces live in src/types.ts and are exported through the same
 
 12. Code style opinions
 
-Functions should prefer a single parameter. When a function needs more than one input, it should take a named options object rather than multiple positional arguments.
+Project-owned functions should have at most one parameter. When a function needs more than one input, it should take a named options object rather than multiple positional arguments.
 
 This makes call sites easier to read, reduces mistakes caused by argument order, and leaves room to add future inputs without repeatedly changing function signatures.
+
+The practical exception is callbacks whose shape is defined by JavaScript or Node APIs, such as Array.sort comparators. In those cases, keeping the standard callback signature is clearer than wrapping the API just to satisfy the local convention.
 
 13. AI usage
 

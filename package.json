@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
+    "check": "npm test && npm run simulate:all",
     "start": "npm run build && node dist/src/cli.js sample/scenario.json",
     "simulate": "npm run build && node dist/src/cli.js",
     "simulate:all": "npm run build && node dist/src/run-all-scenarios.js",

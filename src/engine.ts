@@ -37,7 +37,7 @@ export function runSimulation(scenario: Scenario): SimulationResult {
   const log: TurnLog[] = [];
 
   const initialEvents: string[] = [];
-  resolveInteractions(state, initialEvents);
+  resolveInteractions({ state, events: initialEvents });
   if (initialEvents.length > 0) {
     log.push({
       turn: 0,
@@ -58,7 +58,7 @@ export function runSimulation(scenario: Scenario): SimulationResult {
         continue;
       }
 
-      activateEntity(state, entity, events);
+      activateEntity({ state, entity, events });
 
       if (isComplete(state)) {
         break;
@@ -74,7 +74,7 @@ export function runSimulation(scenario: Scenario): SimulationResult {
 
   return {
     winner: determineWinner(state),
-    reason: getEndReason(state, turn, maxTurns),
+    reason: getEndReason({ state, turn, maxTurns }),
     turns: turn,
     scores: getScores(state),
     survivorsRemaining: getSurvivorsRemaining(state),
@@ -89,34 +89,38 @@ export function runSimulation(scenario: Scenario): SimulationResult {
   };
 }
 
-function activateEntity(
-  state: SimulationState,
-  entity: Entity,
-  events: string[],
-): void {
-  const moveSteps = getMoveStepsForEntity(state, entity);
+function activateEntity({
+  state,
+  entity,
+  events,
+}: {
+  state: SimulationState;
+  entity: Entity;
+  events: string[];
+}): void {
+  const moveSteps = getMoveStepsForEntity({ state, entity });
 
   for (let step = 0; step < moveSteps; step += 1) {
-    const target = findActivationTarget(state, entity);
+    const target = findActivationTarget({ state, entity });
 
     if (!target) {
       events.push(getNoTargetEvent(entity));
       break;
     }
 
-    const moved = moveEntityToward(
+    const moved = moveEntityToward({
       state,
       entity,
-      target.position,
+      targetPosition: target.position,
       events,
-      target.id,
-    );
+      targetId: target.id,
+    });
 
     if (
       state.rules.activation.interactionTiming ===
       INTERACTION_TIMING.AFTER_EACH_STEP
     ) {
-      resolveInteractions(state, events, entity.id);
+      resolveInteractions({ state, events, actorId: entity.id });
     }
 
     if (!entity.alive || isComplete(state) || !moved) {
@@ -129,18 +133,30 @@ function activateEntity(
     state.rules.activation.interactionTiming ===
       INTERACTION_TIMING.AFTER_ACTIVATION
   ) {
-    resolveInteractions(state, events, entity.id);
+    resolveInteractions({ state, events, actorId: entity.id });
   }
 }
 
 function getActivationOrder(state: SimulationState): string[] {
   return state.entities
     .filter((entity) => entity.alive)
-    .sort((a, b) => compareEntities(a, b, state.rules.activationOrder))
+    .sort((a, b) =>
+      compareEntities({
+        first: a,
+        second: b,
+        activationOrder: state.rules.activationOrder,
+      }),
+    )
     .map((entity) => entity.id);
 }
 
-function getMoveStepsForEntity(state: SimulationState, entity: Entity): number {
+function getMoveStepsForEntity({
+  state,
+  entity,
+}: {
+  state: SimulationState;
+  entity: Entity;
+}): number {
   if (entity.type === ENTITY_TYPES.WALKER) {
     return state.rules.activation.walkerMoveSteps;
   }
