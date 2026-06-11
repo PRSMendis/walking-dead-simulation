@@ -21,15 +21,22 @@ import {
   isComplete,
   validateScenario,
 } from "./state.js";
+import type {
+  Entity,
+  Scenario,
+  SimulationResult,
+  SimulationState,
+  TurnLog,
+} from "./types.js";
 
-export function runSimulation(scenario) {
+export function runSimulation(scenario: Scenario): SimulationResult {
   validateScenario(scenario);
 
   const state = createInitialState(scenario);
   const maxTurns = scenario.maxTurns ?? DEFAULT_MAX_TURNS;
-  const log = [];
+  const log: TurnLog[] = [];
 
-  const initialEvents = [];
+  const initialEvents: string[] = [];
   resolveInteractions(state, initialEvents);
   if (initialEvents.length > 0) {
     log.push({
@@ -42,7 +49,7 @@ export function runSimulation(scenario) {
   let turn = 0;
   while (!isComplete(state) && turn < maxTurns) {
     turn += 1;
-    const events = [];
+    const events: string[] = [];
     const activationOrder = getActivationOrder(state);
 
     for (const entityId of activationOrder) {
@@ -82,7 +89,11 @@ export function runSimulation(scenario) {
   };
 }
 
-function activateEntity(state, entity, events) {
+function activateEntity(
+  state: SimulationState,
+  entity: Entity,
+  events: string[],
+): void {
   const moveSteps = getMoveStepsForEntity(state, entity);
 
   for (let step = 0; step < moveSteps; step += 1) {
@@ -122,14 +133,14 @@ function activateEntity(state, entity, events) {
   }
 }
 
-function getActivationOrder(state) {
+function getActivationOrder(state: SimulationState): string[] {
   return state.entities
     .filter((entity) => entity.alive)
     .sort((a, b) => compareEntities(a, b, state.rules.activationOrder))
     .map((entity) => entity.id);
 }
 
-function getMoveStepsForEntity(state, entity) {
+function getMoveStepsForEntity(state: SimulationState, entity: Entity): number {
   if (entity.type === ENTITY_TYPES.WALKER) {
     return state.rules.activation.walkerMoveSteps;
   }
@@ -141,7 +152,7 @@ function getMoveStepsForEntity(state, entity) {
   return state.rules.activation.precinctMoveSteps;
 }
 
-function getNoTargetEvent(entity) {
+function getNoTargetEvent(entity: Entity): string {
   if (entity.type === ENTITY_TYPES.WALKER) {
     return `${entity.id} had no living humans to pursue.`;
   }

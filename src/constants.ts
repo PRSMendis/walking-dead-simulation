@@ -34,7 +34,7 @@ export const PARK_MILLER_MULTIPLIER = 16807;
 export const PARK_MILLER_MODULUS = 2147483647;
 export const PARK_MILLER_MAX_RANDOM_VALUE = PARK_MILLER_MODULUS - 1;
 
-export const DEFAULT_RULES = Object.freeze({
+export const DEFAULT_RULES: Readonly<Rules> = Object.freeze({
   movement: MOVEMENT_MODES.ORTHOGONAL,
   activation: Object.freeze({
     labMoveSteps: 1,
@@ -47,25 +47,30 @@ export const DEFAULT_RULES = Object.freeze({
     interGroupSurvivorKillChance: 0,
     randomSeed: 1,
   }),
-  activationOrder: Object.freeze([
+  activationOrder: [
     ACTIVATION_PARTICIPANTS.LAB,
     ACTIVATION_PARTICIPANTS.PRECINCT,
     ACTIVATION_PARTICIPANTS.WALKER,
-  ]),
+  ] satisfies ActivationParticipant[],
   resourceOwnership: RESOURCE_OWNERSHIP.DROPPED_ON_DEATH,
 });
 
-export const ORTHOGONAL_DIRECTIONS = Object.freeze([
+export const ORTHOGONAL_DIRECTIONS: readonly Position[] = Object.freeze([
   { x: 0, y: -1 },
   { x: 1, y: 0 },
   { x: 0, y: 1 },
   { x: -1, y: 0 },
 ]);
 
-export const DIAGONAL_DIRECTIONS = Object.freeze([
+export const DIAGONAL_DIRECTIONS: readonly Position[] = Object.freeze([
   ...ORTHOGONAL_DIRECTIONS,
   { x: -1, y: -1 },
   { x: 1, y: -1 },
   { x: 1, y: 1 },
   { x: -1, y: 1 },
 ]);
+import type {
+  ActivationParticipant,
+  Position,
+  Rules,
+} from "./types.js";

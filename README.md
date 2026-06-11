@@ -5,9 +5,15 @@ A deterministic turn-based simulation for the Ailo coding exercise.
 ## Requirements
 
 - Node.js 18 or newer
-- No npm install is required
+- npm install
 
 ## Run
+
+Install dependencies first:
+
+```sh
+npm install
+```
 
 Run the bundled sample scenario:
 
@@ -155,20 +161,21 @@ The winner is the group with the most claimed resources. If resource counts are 
 
 ## Project Structure
 
-- `src/simulation.js` - public simulation facade used by the CLI and tests
-- `src/engine.js` - turn loop and activation orchestration
-- `src/interactions.js` - resource claims, combat, survivor death, and dropped resources
-- `src/movement.js` - movement, targeting, and position helpers
-- `src/state.js` - scenario validation, initial state, scores, summaries, and winner calculation
-- `src/rules.js`, `src/random.js`, `src/constants.js` - rule normalization, seeded randomness, and shared constants
-- `src/cli.js` - command-line entry point
+- `src/simulation.ts` - public simulation facade used by the CLI and tests
+- `src/types.ts` - shared simulation interfaces and type aliases
+- `src/engine.ts` - turn loop and activation orchestration
+- `src/interactions.ts` - resource claims, combat, survivor death, and dropped resources
+- `src/movement.ts` - movement, targeting, and position helpers
+- `src/state.ts` - scenario validation, initial state, scores, summaries, and winner calculation
+- `src/rules.ts`, `src/random.ts`, `src/constants.ts` - rule normalization, seeded randomness, and shared constants
+- `src/cli.ts` - command-line entry point
 - `sample/scenario.json` - runnable sample input
 - `sample/diagonal-movement.json` - sample showing diagonal movement
 - `sample/fast-walkers.json` - sample showing different Lab, Precinct, and walker activation speeds
 - `sample/lab-advantage.json` - sample tuned to produce a Lab win
 - `sample/precinct-advantage.json` - sample tuned to produce a Precinct win
 - `sample/walker-first.json` - sample showing walkers activating before survivors
-- `test/simulation.test.js` - focused behaviour tests
+- `test/simulation.test.ts` - focused behaviour tests
 - `assumptions` - explicit assumptions made by the implementation
 - `design-decisions` - rationale for the configurable rules and trade-offs
 

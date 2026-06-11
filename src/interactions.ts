@@ -10,15 +10,23 @@ import {
   compareEntities,
   occupiedCells,
 } from "./state.js";
+import type {
+  Entity,
+  Position,
+  Resource,
+  SimulationState,
+  SurvivorEntity,
+  WalkerEntity,
+} from "./types.js";
 
-export function resolveInteractions(state, events, actorId = null) {
+export function resolveInteractions(
+  state: SimulationState,
+  events: string[],
+  actorId: string | null = null,
+): void {
   for (const cell of occupiedCells(state.entities)) {
-    const walkers = cell.entities.filter(
-      (entity) => entity.type === ENTITY_TYPES.WALKER && entity.alive,
-    );
-    const survivors = cell.entities.filter(
-      (entity) => entity.type === ENTITY_TYPES.SURVIVOR && entity.alive,
-    );
+    const walkers = cell.entities.filter(isLivingWalker);
+    const survivors = cell.entities.filter(isLivingSurvivor);
 
     if (walkers.length > 0 && survivors.length > 0) {
       resolveSurvivorWalkerCombat(state, survivors, walkers, events);
@@ -33,11 +41,8 @@ export function resolveInteractions(state, events, actorId = null) {
     }
 
     const survivorsAtResource = state.entities
-      .filter(
-        (entity) =>
-          entity.type === ENTITY_TYPES.SURVIVOR &&
-          entity.alive &&
-          positionsEqual(entity.position, resource.position),
+      .filter((entity): entity is SurvivorEntity =>
+        isResourceCollision({ entity, resource }),
       )
       .sort((a, b) => compareEntities(a, b, state.rules.activationOrder));
 
@@ -55,7 +60,12 @@ export function resolveInteractions(state, events, actorId = null) {
   }
 }
 
-function resolveSurvivorWalkerCombat(state, survivors, walkers, events) {
+function resolveSurvivorWalkerCombat(
+  state: SimulationState,
+  survivors: SurvivorEntity[],
+  walkers: WalkerEntity[],
+  events: string[],
+): void {
   const orderedSurvivors = [...survivors].sort((a, b) =>
     compareEntities(a, b, state.rules.activationOrder),
   );
@@ -85,7 +95,11 @@ function resolveSurvivorWalkerCombat(state, survivors, walkers, events) {
   }
 }
 
-function resolveInterGroupSurvivorCombat(state, survivors, events) {
+function resolveInterGroupSurvivorCombat(
+  state: SimulationState,
+  survivors: SurvivorEntity[],
+  events: string[],
+): void {
   if (state.rules.combat.interGroupSurvivorKillChance <= 0) {
     return;
   }
@@ -118,7 +132,12 @@ function resolveInterGroupSurvivorCombat(state, survivors, events) {
   }
 }
 
-function killSurvivor(state, survivor, killers, events) {
+function killSurvivor(
+  state: SimulationState,
+  survivor: SurvivorEntity,
+  killers: Entity[],
+  events: string[],
+): void {
   survivor.alive = false;
   events.push(
     `${survivor.id} (${survivor.group}) was killed by ${killers.map((killer) => killer.id).join(", ")} at ${formatPosition(survivor.position)}.`,
@@ -140,4 +159,39 @@ function killSurvivor(state, survivor, killers, events) {
       `${survivor.id} dropped ${resource.id}; it is now unclaimed at ${formatPosition(resource.position)}.`,
     );
   }
+}
+
+function isLivingWalker(entity: Entity): entity is WalkerEntity {
+  return entity.type === ENTITY_TYPES.WALKER && entity.alive;
+}
+
+function isLivingSurvivor(entity: Entity): entity is SurvivorEntity {
+  return entity.type === ENTITY_TYPES.SURVIVOR && entity.alive;
+}
+
+function isResourceCollision({
+  entity,
+  resource,
+}: {
+  entity: Entity;
+  resource: Resource;
+}): boolean {
+  return (
+    entity.type === ENTITY_TYPES.SURVIVOR &&
+    entity.alive &&
+    isCollision({
+      firstPosition: entity.position,
+      secondPosition: resource.position,
+    })
+  );
+}
+
+function isCollision({
+  firstPosition,
+  secondPosition,
+}: {
+  firstPosition: Position;
+  secondPosition: Position;
+}): boolean {
+  return positionsEqual(firstPosition, secondPosition);
 }

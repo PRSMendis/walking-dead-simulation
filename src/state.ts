@@ -10,30 +10,47 @@ import {
 } from "./movement.js";
 import { createSeededRandom } from "./random.js";
 import { normalizeRules } from "./rules.js";
+import type {
+  ActivationParticipant,
+  Entity,
+  Group,
+  OccupiedCell,
+  Position,
+  Scenario,
+  ScenarioEntityInput,
+  ScoreByGroup,
+  SimulationState,
+  SurvivorEntity,
+  TurnSummary,
+  Winner,
+} from "./types.js";
 
-export function validateScenario(scenario) {
+export function validateScenario(scenario: unknown): asserts scenario is Scenario {
   if (!scenario || typeof scenario !== "object") {
     throw new Error("Scenario must be an object.");
   }
 
-  if (!Number.isInteger(scenario.gridSize) || scenario.gridSize <= 0) {
+  const candidate = scenario as Partial<Scenario>;
+  const gridSize = candidate.gridSize;
+
+  if (typeof gridSize !== "number" || !Number.isInteger(gridSize) || gridSize <= 0) {
     throw new Error("gridSize must be a positive integer.");
   }
 
   if (
-    scenario.maxTurns !== undefined &&
-    (!Number.isInteger(scenario.maxTurns) || scenario.maxTurns <= 0)
+    candidate.maxTurns !== undefined &&
+    (!Number.isInteger(candidate.maxTurns) || candidate.maxTurns <= 0)
   ) {
     throw new Error("maxTurns must be a positive integer when provided.");
   }
 
-  normalizeRules(scenario.rules);
+  normalizeRules(candidate.rules);
 
-  const collections = [
-    ["walkers", scenario.walkers],
-    ["labSurvivors", scenario.labSurvivors],
-    ["precinctSurvivors", scenario.precinctSurvivors],
-    ["resources", scenario.resources],
+  const collections: Array<[string, unknown]> = [
+    ["walkers", candidate.walkers],
+    ["labSurvivors", candidate.labSurvivors],
+    ["precinctSurvivors", candidate.precinctSurvivors],
+    ["resources", candidate.resources],
   ];
 
   for (const [name, collection] of collections) {
@@ -42,28 +59,38 @@ export function validateScenario(scenario) {
     }
   }
 
-  const ids = new Set();
+  const ids = new Set<string>();
   for (const [name, collection] of collections) {
+    if (!Array.isArray(collection)) {
+      throw new Error(`${name} must be an array.`);
+    }
+
     for (const item of collection) {
       if (!item || typeof item !== "object") {
         throw new Error(`${name} entries must be objects.`);
       }
 
-      if (typeof item.id !== "string" || item.id.trim() === "") {
+      const itemCandidate = item as Partial<ScenarioEntityInput>;
+
+      if (typeof itemCandidate.id !== "string" || itemCandidate.id.trim() === "") {
         throw new Error(`${name} entries must have a non-empty string id.`);
       }
 
-      if (ids.has(item.id)) {
-        throw new Error(`Duplicate id found: ${item.id}.`);
+      if (ids.has(itemCandidate.id)) {
+        throw new Error(`Duplicate id found: ${itemCandidate.id}.`);
       }
-      ids.add(item.id);
+      ids.add(itemCandidate.id);
 
-      assertPositionInBounds({ x: item.x, y: item.y }, scenario.gridSize, item.id);
+      assertPositionInBounds(
+        { x: itemCandidate.x, y: itemCandidate.y },
+        gridSize,
+        itemCandidate.id,
+      );
     }
   }
 }
 
-export function createInitialState(scenario) {
+export function createInitialState(scenario: Scenario): SimulationState {
   const rules = normalizeRules(scenario.rules);
   return {
     gridSize: scenario.gridSize,
@@ -92,7 +119,7 @@ export function createInitialState(scenario) {
   };
 }
 
-export function determineWinner(state) {
+export function determineWinner(state: SimulationState): Winner {
   const scores = getScores(state);
   if (scores[GROUPS.LAB] > scores[GROUPS.PRECINCT]) {
     return GROUPS.LAB;
@@ -112,18 +139,22 @@ export function determineWinner(state) {
   return "Draw";
 }
 
-export function compareEntities(a, b, activationOrder) {
+export function compareEntities(
+  a: Entity,
+  b: Entity,
+  activationOrder: ActivationParticipant[],
+): number {
   const activationIndexes = new Map(
     activationOrder.map((participant, index) => [participant, index]),
   );
   const orderDelta =
-    activationIndexes.get(getActivationParticipant(a)) -
-    activationIndexes.get(getActivationParticipant(b));
+    (activationIndexes.get(getActivationParticipant(a)) ?? Number.MAX_SAFE_INTEGER) -
+    (activationIndexes.get(getActivationParticipant(b)) ?? Number.MAX_SAFE_INTEGER);
   return orderDelta || a.id.localeCompare(b.id);
 }
 
-export function occupiedCells(entities) {
-  const cells = new Map();
+export function occupiedCells(entities: Entity[]): IterableIterator<OccupiedCell> {
+  const cells = new Map<string, OccupiedCell>();
   for (const entity of entities.filter((candidate) => candidate.alive)) {
     const key = positionKey(entity.position);
     const cell = cells.get(key) ?? { position: entity.position, entities: [] };
@@ -133,11 +164,15 @@ export function occupiedCells(entities) {
   return cells.values();
 }
 
-export function isComplete(state) {
+export function isComplete(state: SimulationState): boolean {
   return allResourcesClaimed(state) || noHumansRemain(state);
 }
 
-export function getEndReason(state, turn, maxTurns) {
+export function getEndReason(
+  state: SimulationState,
+  turn: number,
+  maxTurns: number,
+): string {
   if (allResourcesClaimed(state)) {
     return "All resources have been claimed.";
   }
@@ -153,7 +188,7 @@ export function getEndReason(state, turn, maxTurns) {
   return "Simulation stopped.";
 }
 
-export function getScores(state) {
+export function getScores(state: SimulationState): ScoreByGroup {
   return {
     [GROUPS.LAB]: state.resources.filter((resource) => resource.claimedBy === GROUPS.LAB)
       .length,
@@ -163,7 +198,7 @@ export function getScores(state) {
   };
 }
 
-export function getSurvivorsRemaining(state) {
+export function getSurvivorsRemaining(state: SimulationState): ScoreByGroup {
   return {
     [GROUPS.LAB]: state.entities.filter(
       (entity) =>
@@ -178,7 +213,7 @@ export function getSurvivorsRemaining(state) {
   };
 }
 
-export function buildSummary(state) {
+export function buildSummary(state: SimulationState): TurnSummary {
   return {
     scores: getScores(state),
     survivorsRemaining: getSurvivorsRemaining(state),
@@ -188,7 +223,7 @@ export function buildSummary(state) {
   };
 }
 
-function createSurvivor(survivor, group) {
+function createSurvivor(survivor: ScenarioEntityInput, group: Group): SurvivorEntity {
   return {
     id: survivor.id,
     type: ENTITY_TYPES.SURVIVOR,
@@ -198,17 +233,17 @@ function createSurvivor(survivor, group) {
   };
 }
 
-function allResourcesClaimed(state) {
+function allResourcesClaimed(state: SimulationState): boolean {
   return state.resources.every((resource) => resource.claimedBy !== null);
 }
 
-function noHumansRemain(state) {
+function noHumansRemain(state: SimulationState): boolean {
   return !state.entities.some(
     (entity) => entity.type === ENTITY_TYPES.SURVIVOR && entity.alive,
   );
 }
 
-function getActivationParticipant(entity) {
+function getActivationParticipant(entity: Entity): ActivationParticipant {
   if (entity.type === ENTITY_TYPES.WALKER) {
     return ACTIVATION_PARTICIPANTS.WALKER;
   }
@@ -216,12 +251,17 @@ function getActivationParticipant(entity) {
   return entity.group;
 }
 
-function assertPositionInBounds(position, gridSize, id) {
+function assertPositionInBounds(
+  position: { x: unknown; y: unknown },
+  gridSize: number,
+  id: string,
+): void {
   if (!Number.isInteger(position.x) || !Number.isInteger(position.y)) {
     throw new Error(`${id} must have integer x and y coordinates.`);
   }
 
-  if (!isInBounds(position, gridSize)) {
-    throw new Error(`${id} position ${formatPosition(position)} is outside the grid.`);
+  const validatedPosition = position as Position;
+  if (!isInBounds(validatedPosition, gridSize)) {
+    throw new Error(`${id} position ${formatPosition(validatedPosition)} is outside the grid.`);
   }
 }

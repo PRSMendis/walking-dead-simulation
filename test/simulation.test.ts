@@ -13,6 +13,13 @@ import {
   runSimulation,
   validateScenario,
 } from "../src/simulation.js";
+import type {
+  CombatRuleInput,
+  Scenario,
+  ScoreByGroup,
+  SimulationResult,
+  Winner,
+} from "../src/simulation.js";
 
 test("nextStepToward moves one cell and stays inside the grid", () => {
   assert.deepEqual(nextStepToward({ x: 0, y: 0 }, { x: 3, y: 0 }, 4), {
@@ -88,7 +95,7 @@ test("multiple survivors across groups can claim resources in the same turn", ()
     ],
   );
   assert.match(
-    result.log[0].events.join("\n"),
+    result.log[0]!.events.join("\n"),
     /L1 claimed R1.*L2 claimed R2.*P1 claimed R3.*P2 claimed R4/s,
   );
 });
@@ -110,8 +117,8 @@ test("activation order can allow walkers to move before survivors", () => {
   });
 
   assert.equal(result.reason, "No humans remain alive.");
-  assert.equal(result.resources[0].claimedBy, null);
-  assert.match(result.log[0].events[0], /W1 moved/);
+  assert.equal(result.resources[0]!.claimedBy, null);
+  assert.match(result.log[0]!.events[0]!, /W1 moved/);
 });
 
 test("activation move steps can be configured per group and entity type", () => {
@@ -138,15 +145,15 @@ test("activation move steps can be configured per group and entity type", () => 
 
   assert.equal(result.turns, 1);
   assert.equal(
-    result.resources.find((resource) => resource.id === "R1").claimedBy,
+    result.resources.find((resource) => resource.id === "R1")!.claimedBy,
     GROUPS.LAB,
   );
   assert.equal(
-    result.resources.find((resource) => resource.id === "R2").claimedBy,
+    result.resources.find((resource) => resource.id === "R2")!.claimedBy,
     GROUPS.PRECINCT,
   );
   assert.match(
-    result.log[0].events.join("\n"),
+    result.log[0]!.events.join("\n"),
     /W1 moved from \(5, 5\) to \(4, 5\).*W1 moved from \(4, 5\) to \(3, 5\).*W1 moved from \(3, 5\) to \(2, 5\)/s,
   );
 });
@@ -172,11 +179,11 @@ test("survivorMoveSteps remains a backwards-compatible activation shortcut", () 
   assert.equal(result.reason, "All resources have been claimed.");
   assert.equal(result.turns, 1);
   assert.equal(
-    result.resources.find((resource) => resource.id === "R1").claimedBy,
+    result.resources.find((resource) => resource.id === "R1")!.claimedBy,
     GROUPS.LAB,
   );
   assert.equal(
-    result.resources.find((resource) => resource.id === "R2").claimedBy,
+    result.resources.find((resource) => resource.id === "R2")!.claimedBy,
     GROUPS.PRECINCT,
   );
 });
@@ -200,7 +207,7 @@ test("interaction timing can resolve after the whole activation", () => {
   assert.equal(result.reason, "All resources have been claimed.");
   assert.equal(result.turns, 1);
   assert.match(
-    result.log[0].events.join("\n"),
+    result.log[0]!.events.join("\n"),
     /L1 moved from \(0, 0\) to \(1, 0\).*L1 stayed at \(1, 0\).*L1 claimed R1/s,
   );
 });
@@ -340,7 +347,7 @@ test("claimed resources can stay claimed if configured as claimed-on-touch", () 
 
   assert.equal(result.reason, "No humans remain alive.");
   assert.equal(
-    result.resources.find((resource) => resource.id === "R1").claimedBy,
+    result.resources.find((resource) => resource.id === "R1")!.claimedBy,
     GROUPS.LAB,
   );
 });
@@ -363,7 +370,7 @@ test("claimed resources are dropped by default when the claimant is killed", () 
     ],
   });
 
-  const droppedResource = result.resources.find((resource) => resource.id === "R1");
+  const droppedResource = result.resources.find((resource) => resource.id === "R1")!;
   assert.equal(result.reason, "No humans remain alive.");
   assert.equal(droppedResource.claimedBy, null);
   assert.deepEqual(droppedResource.position, { x: 1, y: 0 });
@@ -455,7 +462,7 @@ test("larger mixed scenario handles multiple survivors, walkers, and resources",
     [GROUPS.PRECINCT]: 2,
   });
   assert.equal(
-    result.resources.find((resource) => resource.id === "R5").claimedByEntityId,
+    result.resources.find((resource) => resource.id === "R5")!.claimedByEntityId,
     "P2",
   );
   assert.match(
@@ -497,7 +504,7 @@ test("resources dropped in inter-group combat can be claimed by the survivor on 
     ],
   });
 
-  const resource = result.resources.find((candidate) => candidate.id === "R1");
+  const resource = result.resources.find((candidate) => candidate.id === "R1")!;
   assert.equal(resource.claimedBy, GROUPS.LAB);
   assert.deepEqual(resource.position, { x: 1, y: 1 });
   assert.match(
@@ -527,7 +534,7 @@ test("seeded combat makes repeated simulations reproducible", () => {
 });
 
 test("different random seeds can produce different combat outcomes", () => {
-  const buildScenario = (randomSeed) => ({
+  const buildScenario = (randomSeed: number): Scenario => ({
     gridSize: 2,
     maxTurns: 1,
     rules: {
@@ -558,7 +565,7 @@ test("different random seeds can produce different combat outcomes", () => {
 });
 
 test("omitting randomSeed uses the documented default seed", () => {
-  const buildScenario = (combat) => ({
+  const buildScenario = (combat: CombatRuleInput): Scenario => ({
     gridSize: 2,
     maxTurns: 1,
     rules: {
@@ -699,7 +706,7 @@ test("the sample scenario produces a coherent finished simulation", () => {
 });
 
 test("all sample scenarios run successfully", async () => {
-  const sampleDir = new URL("../sample", import.meta.url);
+  const sampleDir = join(process.cwd(), "sample");
   const sampleFiles = (await readdir(sampleDir))
     .filter((fileName) => fileName.endsWith(".json"))
     .sort();
@@ -713,7 +720,11 @@ test("all sample scenarios run successfully", async () => {
     "walker-first.json",
   ]);
 
-  const expectedOutcomes = {
+  const expectedOutcomes: Record<string, {
+    winner: Winner;
+    reason: string;
+    scores: ScoreByGroup;
+  }> = {
     "diagonal-movement.json": {
       winner: "Draw",
       reason: "All resources have been claimed.",
@@ -747,8 +758,8 @@ test("all sample scenarios run successfully", async () => {
   };
 
   for (const sampleFile of sampleFiles) {
-    const samplePath = join(sampleDir.pathname, sampleFile);
-    const scenario = JSON.parse(await readFile(samplePath, "utf8"));
+    const samplePath = join(sampleDir, sampleFile);
+    const scenario = JSON.parse(await readFile(samplePath, "utf8")) as Scenario;
     const result = runSimulation(scenario);
     const expected = expectedOutcomes[sampleFile];
 

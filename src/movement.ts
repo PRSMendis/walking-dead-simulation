@@ -4,13 +4,20 @@ import {
   MOVEMENT_MODES,
   ORTHOGONAL_DIRECTIONS,
 } from "./constants.js";
+import type {
+  Entity,
+  MovementMode,
+  Position,
+  SimulationState,
+  Target,
+} from "./types.js";
 
 export function nextStepToward(
-  from,
-  target,
-  gridSize,
-  movement = MOVEMENT_MODES.ORTHOGONAL,
-) {
+  from: Position,
+  target: Position,
+  gridSize: number,
+  movement: MovementMode = MOVEMENT_MODES.ORTHOGONAL,
+): Position {
   if (positionsEqual(from, target)) {
     return { ...from };
   }
@@ -39,7 +46,13 @@ export function nextStepToward(
   return best;
 }
 
-export function moveEntityToward(state, entity, targetPosition, events, targetId) {
+export function moveEntityToward(
+  state: SimulationState,
+  entity: Entity,
+  targetPosition: Position,
+  events: string[],
+  targetId: string,
+): boolean {
   const from = { ...entity.position };
   const to = nextStepToward(
     from,
@@ -60,7 +73,10 @@ export function moveEntityToward(state, entity, targetPosition, events, targetId
   return true;
 }
 
-export function findActivationTarget(state, entity) {
+export function findActivationTarget(
+  state: SimulationState,
+  entity: Entity,
+): Target | undefined {
   if (entity.type === ENTITY_TYPES.SURVIVOR) {
     return findNearestTarget(
       entity.position,
@@ -78,19 +94,19 @@ export function findActivationTarget(state, entity) {
   );
 }
 
-export function positionsEqual(a, b) {
+export function positionsEqual(a: Position, b: Position): boolean {
   return a.x === b.x && a.y === b.y;
 }
 
-export function positionKey(position) {
+export function positionKey(position: Position): string {
   return `${position.x},${position.y}`;
 }
 
-export function formatPosition(position) {
+export function formatPosition(position: Position): string {
   return `(${position.x}, ${position.y})`;
 }
 
-export function isInBounds(position, gridSize) {
+export function isInBounds(position: Position, gridSize: number): boolean {
   return (
     position.x >= 0 &&
     position.x < gridSize &&
@@ -99,11 +115,15 @@ export function isInBounds(position, gridSize) {
   );
 }
 
-export function comparePositions(a, b) {
+export function comparePositions(a: Position, b: Position): number {
   return a.y - b.y || a.x - b.x;
 }
 
-function findNearestTarget(from, targets, movement) {
+function findNearestTarget<TargetType extends Target>(
+  from: Position,
+  targets: TargetType[],
+  movement: MovementMode,
+): TargetType | undefined {
   return [...targets].sort((a, b) => {
     const distanceDelta =
       distanceForMovement(from, a.position, movement) -
@@ -116,15 +136,19 @@ function findNearestTarget(from, targets, movement) {
   })[0];
 }
 
-function manhattanDistance(a, b) {
+function manhattanDistance(a: Position, b: Position): number {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
-function chebyshevDistance(a, b) {
+function chebyshevDistance(a: Position, b: Position): number {
   return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
-function distanceForMovement(a, b, movement) {
+function distanceForMovement(
+  a: Position,
+  b: Position,
+  movement: MovementMode,
+): number {
   if (movement === MOVEMENT_MODES.DIAGONAL) {
     return chebyshevDistance(a, b);
   }
@@ -132,7 +156,7 @@ function distanceForMovement(a, b, movement) {
   return manhattanDistance(a, b);
 }
 
-function getDirections(movement) {
+function getDirections(movement: MovementMode): readonly Position[] {
   if (movement === MOVEMENT_MODES.DIAGONAL) {
     return DIAGONAL_DIRECTIONS;
   }

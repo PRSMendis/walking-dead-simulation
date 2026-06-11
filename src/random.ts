@@ -4,7 +4,7 @@ import {
   PARK_MILLER_MULTIPLIER,
 } from "./constants.js";
 
-export function createSeededRandom(seed) {
+export function createSeededRandom(seed: number): () => number {
   let state = Math.abs(seed) || 1;
 
   return () => {
@@ -13,6 +13,6 @@ export function createSeededRandom(seed) {
   };
 }
 
-function nextParkMillerState(state) {
+function nextParkMillerState(state: number): number {
   return (state * PARK_MILLER_MULTIPLIER) % PARK_MILLER_MODULUS;
 }

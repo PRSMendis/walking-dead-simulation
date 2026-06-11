@@ -5,11 +5,16 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "node src/cli.js sample/scenario.json",
-    "run": "node src/cli.js",
-    "test": "node --test"
+    "build": "tsc",
+    "start": "npm run build && node dist/src/cli.js sample/scenario.json",
+    "run": "npm run build && node dist/src/cli.js",
+    "test": "npm run build && node --test dist/test/*.test.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3"
   }
 }

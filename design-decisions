@@ -122,13 +122,21 @@ This keeps the winner calculation aligned with the core objective while still pr
 
 11. Module boundaries
 
-The implementation keeps src/simulation.js as the public facade, while splitting the simulation internals into focused modules for constants, rules, random number generation, movement, state, interactions, and the engine loop.
+The implementation keeps src/simulation.ts as the public facade, while splitting the simulation internals into focused modules for constants, rules, random number generation, movement, state, interactions, and the engine loop.
 
 This makes the code easier to read without changing the public API used by the CLI and tests. The split follows the simulation's natural responsibilities: low-level constants and rules sit at the bottom, interactions and state helpers build on them, and the engine orchestrates the turn flow.
 
-Keeping src/simulation.js as a facade is intentional. This is a common JavaScript pattern, sometimes called a barrel file or public entrypoint. Callers can import the simulation API from one obvious place, while the implementation remains free to move between internal modules. In this project, that trade-off is worthwhile because there is a single domain boundary and a small public API; adding barrel files throughout every folder would be unnecessary.
+Keeping src/simulation.ts as a facade is intentional. This is a common JavaScript/TypeScript pattern, sometimes called a barrel file or public entrypoint. Callers can import the simulation API from one obvious place, while the implementation remains free to move between internal modules. In this project, that trade-off is worthwhile because there is a single domain boundary and a small public API; adding barrel files throughout every folder would be unnecessary.
 
-12. AI usage
+The TypeScript interfaces live in src/types.ts and are exported through the same facade. This keeps the runtime API and the type API aligned: callers can import both functions and scenario/result shapes from src/simulation.ts without depending on internal module boundaries.
+
+12. Code style opinions
+
+Functions should prefer a single parameter. When a function needs more than one input, it should take a named options object rather than multiple positional arguments.
+
+This makes call sites easier to read, reduces mistakes caused by argument order, and leaves room to add future inputs without repeatedly changing function signatures.
+
+13. AI usage
 
 AI was useful for identifying ambiguities in the brief and exploring possible rule sets. The final choices prioritise determinism, configurability, and testability.
 

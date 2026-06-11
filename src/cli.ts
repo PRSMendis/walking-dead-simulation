@@ -1,10 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { runSimulation } from "./simulation.js";
+import type {
+  Scenario,
+  SimulationResult,
+} from "./types.js";
 
 const scenarioPath = process.argv[2] ?? "sample/scenario.json";
 
 try {
-  const scenario = JSON.parse(await readFile(scenarioPath, "utf8"));
+  const scenario = JSON.parse(await readFile(scenarioPath, "utf8")) as Scenario;
   const result = runSimulation(scenario);
   printResult(result);
 } catch (error) {
@@ -12,7 +16,7 @@ try {
   process.exitCode = 1;
 }
 
-function printResult(result) {
+function printResult(result: SimulationResult): void {
   console.log(`Winner: ${result.winner}`);
   console.log(`Reason: ${result.reason}`);
   console.log(`Turns: ${result.turns}`);

@@ -5,11 +5,25 @@ import {
   MOVEMENT_MODES,
   RESOURCE_OWNERSHIP,
 } from "./constants.js";
+import type {
+  ActivationParticipant,
+  ActivationRuleInput,
+  ActivationRules,
+  CombatRuleInput,
+  CombatRules,
+  InteractionTiming,
+  MovementMode,
+  PartialRules,
+  ResourceOwnership,
+  Rules,
+} from "./types.js";
 
-export function normalizeRules(rules = {}) {
+export function normalizeRules(rules: PartialRules | undefined = {}): Rules {
   if (rules === undefined) {
     return {
       ...DEFAULT_RULES,
+      activation: { ...DEFAULT_RULES.activation },
+      combat: { ...DEFAULT_RULES.combat },
       activationOrder: [...DEFAULT_RULES.activationOrder],
     };
   }
@@ -35,7 +49,7 @@ export function normalizeRules(rules = {}) {
   return cloneRules(normalized);
 }
 
-export function cloneRules(rules) {
+export function cloneRules(rules: Rules): Rules {
   return {
     movement: rules.movement,
     activation: { ...rules.activation },
@@ -45,7 +59,9 @@ export function cloneRules(rules) {
   };
 }
 
-function normalizeActivationRule(activation = {}) {
+function normalizeActivationRule(
+  activation: ActivationRuleInput | undefined = {},
+): ActivationRules {
   if (activation === undefined) {
     return { ...DEFAULT_RULES.activation };
   }
@@ -70,7 +86,7 @@ function normalizeActivationRule(activation = {}) {
   };
 }
 
-function normalizeCombatRule(combat = {}) {
+function normalizeCombatRule(combat: CombatRuleInput | undefined = {}): CombatRules {
   if (combat === undefined) {
     return { ...DEFAULT_RULES.combat };
   }
@@ -90,7 +106,7 @@ function normalizeCombatRule(combat = {}) {
   };
 }
 
-function validateMovementRule(movement) {
+function validateMovementRule(movement: MovementMode): void {
   if (!Object.values(MOVEMENT_MODES).includes(movement)) {
     throw new Error(
       `rules.movement must be one of: ${Object.values(MOVEMENT_MODES).join(", ")}.`,
@@ -98,7 +114,7 @@ function validateMovementRule(movement) {
   }
 }
 
-function validateActivationRule(activation) {
+function validateActivationRule(activation: ActivationRules): void {
   validatePositiveIntegerRule(
     activation.labMoveSteps,
     "rules.activation.labMoveSteps",
@@ -119,7 +135,7 @@ function validateActivationRule(activation) {
   }
 }
 
-function validateCombatRule(combat) {
+function validateCombatRule(combat: CombatRules): void {
   if (
     typeof combat.survivorKillWalkerChance !== "number" ||
     combat.survivorKillWalkerChance < 0 ||
@@ -141,13 +157,13 @@ function validateCombatRule(combat) {
   }
 }
 
-function validatePositiveIntegerRule(value, name) {
+function validatePositiveIntegerRule(value: number, name: string): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer.`);
   }
 }
 
-function validateActivationOrder(activationOrder) {
+function validateActivationOrder(activationOrder: ActivationParticipant[]): void {
   const validParticipants = Object.values(ACTIVATION_PARTICIPANTS);
 
   if (!Array.isArray(activationOrder)) {
@@ -177,7 +193,7 @@ function validateActivationOrder(activationOrder) {
   }
 }
 
-function validateResourceOwnership(resourceOwnership) {
+function validateResourceOwnership(resourceOwnership: ResourceOwnership): void {
   if (!Object.values(RESOURCE_OWNERSHIP).includes(resourceOwnership)) {
     throw new Error(
       `rules.resourceOwnership must be one of: ${Object.values(RESOURCE_OWNERSHIP).join(", ")}.`,
