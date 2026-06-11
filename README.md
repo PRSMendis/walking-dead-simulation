@@ -24,22 +24,28 @@ npm start
 Run one of the alternate sample scenarios:
 
 ```sh
-npm run run -- sample/chaos-human-conflict.json
-npm run run -- sample/diagonal-movement.json
-npm run run -- sample/fast-walkers.json
-npm run run -- sample/lab-advantage.json
-npm run run -- sample/lab-narrow-win.json
-npm run run -- sample/max-turn-stalemate.json
-npm run run -- sample/precinct-advantage.json
-npm run run -- sample/precinct-narrow-win.json
-npm run run -- sample/walker-first.json
-npm run run -- sample/walker-overrun.json
+npm run simulate -- sample/chaos-human-conflict.json
+npm run simulate -- sample/diagonal-movement.json
+npm run simulate -- sample/fast-walkers.json
+npm run simulate -- sample/lab-advantage.json
+npm run simulate -- sample/lab-narrow-win.json
+npm run simulate -- sample/max-turn-stalemate.json
+npm run simulate -- sample/precinct-advantage.json
+npm run simulate -- sample/precinct-narrow-win.json
+npm run simulate -- sample/walker-first.json
+npm run simulate -- sample/walker-overrun.json
+```
+
+Run all sample scenarios as a summary:
+
+```sh
+npm run simulate:all
 ```
 
 Run a custom scenario:
 
 ```sh
-npm run run -- path/to/scenario.json
+npm run simulate -- path/to/scenario.json
 ```
 
 ## Test
@@ -174,6 +180,7 @@ The winner is the group with the most claimed resources. If resource counts are 
 - `src/state.ts` - scenario validation, initial state, scores, summaries, and winner calculation
 - `src/rules.ts`, `src/random.ts`, `src/constants.ts` - rule normalization, seeded randomness, and shared constants
 - `src/cli.ts` - command-line entry point
+- `src/run-all-scenarios.ts` - command-line helper for summarising all sample scenarios
 - `sample/scenario.json` - runnable sample input
 - `sample/chaos-human-conflict.json` - sample showing inter-group combat and dropped resources
 - `sample/diagonal-movement.json` - sample showing diagonal movement

@@ -52,6 +52,12 @@ export interface CombatRules {
 
 export type CombatRuleInput = Partial<CombatRules>;
 
+export interface ParkMillerConstants {
+  multiplier: number;
+  modulus: number;
+  maxRandomValue: number;
+}
+
 export interface Rules {
   movement: MovementMode;
   activation: ActivationRules;

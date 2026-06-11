@@ -9,6 +9,7 @@ import {
   RESOURCE_OWNERSHIP,
   createInitialState,
   determineWinner,
+  getParkMillerConstants,
   nextStepToward,
   runSimulation,
   validateScenario,
@@ -531,6 +532,14 @@ test("seeded combat makes repeated simulations reproducible", () => {
   };
 
   assert.deepEqual(runSimulation(scenario), runSimulation(scenario));
+});
+
+test("Park-Miller constants are exposed with descriptive names", () => {
+  assert.deepEqual(getParkMillerConstants(), {
+    multiplier: 16807,
+    modulus: 2147483647,
+    maxRandomValue: 2147483646,
+  });
 });
 
 test("different random seeds can produce different combat outcomes", () => {

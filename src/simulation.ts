@@ -8,6 +8,7 @@ export {
 } from "./constants.js";
 export { runSimulation } from "./engine.js";
 export { nextStepToward } from "./movement.js";
+export { getParkMillerConstants } from "./random.js";
 export {
   createInitialState,
   determineWinner,
@@ -24,6 +25,7 @@ export type {
   Group,
   MovementMode,
   PartialRules,
+  ParkMillerConstants,
   Position,
   Resource,
   ResourceOwnership,
